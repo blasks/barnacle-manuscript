@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "stromatolite-paper"
+version = "0.1.0"
+description = "repository to organize the scripts, analyses, figures, and latex files for the publication linked to stromatolite"
+authors = ["Stephen Blaskowski <stephen.blaskowski@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "stromatolite_paper"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "^1.24.2"
+matplotlib = "^3.7.0"
+pandas = "^1.5.3"
+seaborn = "^0.12.2"
+rpy2 = "^3.5.8"
+notebook = "^6.5.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
