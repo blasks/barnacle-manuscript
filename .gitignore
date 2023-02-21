@@ -3,7 +3,11 @@
 
 # data directories
 data/
-figures/
+
+# figures
+*.png
+*.jpg
+*.svg
 
 # jupyter notebook checkpoint files
 .ipynb_checkpoints/
