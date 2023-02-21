@@ -9,12 +9,17 @@ packages = [{include = "stromatolite_paper"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-numpy = "^1.24.2"
+numpy = "^1.23"
 matplotlib = "^3.7.0"
 pandas = "^1.5.3"
 seaborn = "^0.12.2"
 rpy2 = "^3.5.8"
 notebook = "^6.5.2"
+xarray = "^2023.2.0"
+netcdf4 = "^1.6.2"
+scikit-learn = "^1.2.1"
+numba = "^0.56.4"
+umap-learn = "^0.5.3"
 
 
 [build-system]
