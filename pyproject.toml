@@ -8,7 +8,7 @@ readme = "README.md"
 packages = [{include = "stromatolite_paper"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10 <3.12"
 numpy = "^1.23"
 matplotlib = "^3.7.0"
 pandas = "^1.5.3"
@@ -20,6 +20,10 @@ netcdf4 = "^1.6.2"
 scikit-learn = "^1.2.1"
 numba = "^0.56.4"
 umap-learn = "^0.5.3"
+tensorly = "^0.8.0"
+ncistd = {git = "https://github.com/blasks/ncistd.git"}
+tensorly-lab = {git = "https://github.com/tensorly/lab.git"}
+h5py = "^3.8.0"
 
 
 [build-system]
