@@ -258,29 +258,26 @@ def nonzero_components(cp, return_trimmed_cp=False):
 # main experiment script
 def main():
     
+    # set random state
+    seed = 9481
+    rns = check_random_state(seed)
+    
     # analyze both pro & syn
     for cyano in ['syn', 'pro']:
+        print('\n\nBeginning {} calculations\n'.format(
+            {'pro': 'Prochlorococcus', 'syn': 'Synechococcus'}[cyano]
+        ))
     
         # output directory and experiment parameters
         base_dir = Path('../../data/4-fitting/{}'.format(cyano))
         n_bootstraps = 10
         replicates = ['A', 'B', 'C']
         n_replicates = len(replicates) 
-        fitting_results = []
-        cv_results = []
         
-        # read in NetCDF4 file
-        dataset = xr.open_dataset('../../data/3-normalization/{}-tensor-dataset.nc'.format(cyano))
-        shuffle_ds = dataset.copy()
-        
-        # set random states
-        seed = 9481
-        rns = check_random_state(seed)
-        
-        # model parameters
+        # define model grid search parameters
         model_params = {
-            'rank': [1, 5, 10, 15, 18, 19, 20, 21, 22, 25, 30], 
-            'lambdas': [[i, 0.0, 0.0] for i in [0.5, 1., 2., 4., 8., 16., 32., 64.]], 
+            'rank': [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50], 
+            'lambdas': [[i, 0.0, 0.0] for i in [0., 0.5, 1., 2., 4., 8., 16., 32., 64.]], 
             'nonneg_modes': [[1, 2]],
             'tol': [1e-6], 
             'n_iter_max': [1000], 
@@ -290,54 +287,136 @@ def main():
         # sort by rank to make parallelization more efficient
         param_grid = sorted(param_grid, key=lambda d: d['rank'])
         
+        # set up output data records and locations
+        filepath_fit_data = base_dir / 'fitting_data.csv'
+        if filepath_fit_data.is_file():
+            fitting_df = pd.read_csv(filepath_fit_data)
+            fitting_results = fitting_df.to_dict('records')
+        else:
+            fitting_df = pd.DataFrame()
+            fitting_results = []
+        filepath_cv_data = base_dir / 'cv_data.csv'
+        if filepath_cv_data.is_file():
+            cv_df = pd.read_csv(filepath_cv_data)
+            cv_results = cv_df.to_dict('records')
+        else:
+            cv_df = pd.DataFrame()
+            cv_results = []
+        
+        # import xarray DataSet (NetCDF4 file)
+        dataset = xr.open_dataset('../../data/3-normalization/{}-tensor-dataset.nc'.format(cyano))
+        shuffle_ds = dataset.copy()
+        
         # begin experiment
         for boot_id in range(n_bootstraps):
-            print('\nBootstrap: {}'.format(boot_id), flush=True)
+            shuffle_seed = rns.randint(2**32)
+            print('\nBootstrap: {} (seed={})'.format(boot_id, shuffle_seed), flush=True)
+            
+            # directory and file paths
             output_dir = base_dir / 'bootstrap{}'.format(boot_id)
-            if not output_dir.exists():
-                output_dir.mkdir(parents=True) 
+            filepath_shuffle_ds = output_dir / 'dataset_bootstrap_{}.nc'.format(boot_id)
             
-            # generate new replicate labels
-            new_labels = generate_replicate_labels(
-                sample_names=shuffle_ds.samplename.to_numpy(), 
-                random_state=rns, 
-                replicate_map={0:'A', 1:'B', 2:'C'}
-            )
-            # make Series of new labels with sample as index
-            new_labels_series = pd.DataFrame(
-                zip(shuffle_ds.sample.to_numpy(), new_labels), 
-                columns=['sample', 'replicate']
-            ).set_index('sample')['replicate']
-            # assign new replicate labels to copied dataset
-            shuffle_ds['replicate'] = xr.DataArray.from_series(new_labels_series)
+            # import shuffled dataset if it exists
+            if filepath_shuffle_ds.is_file():
+                print('Importing DataSet discovered at:\n\t{}'.format(
+                    filepath_shuffle_ds
+                ), flush=True)
+                shuffle_ds = xr.open_dataset(filepath_shuffle_ds)
+            # make and save shuffled dataset if it doesn't exist
+            else:
+                print('Shuffling DataSet replicate labels', flush=True)
+                if not output_dir.is_dir():
+                    output_dir.mkdir(parents=True)
+                # generate new replicate labels
+                new_labels = generate_replicate_labels(
+                    sample_names=shuffle_ds.samplename.to_numpy(), 
+                    random_state=shuffle_seed, 
+                    replicate_map={0:'A', 1:'B', 2:'C'}
+                )
+                # make Series of new labels with sample as index
+                new_labels_series = pd.DataFrame(
+                    zip(shuffle_ds.sample.to_numpy(), new_labels), 
+                    columns=['sample', 'replicate']
+                ).set_index('sample')['replicate']
+                # assign new replicate labels to copied dataset
+                shuffle_ds['replicate'] = xr.DataArray.from_series(new_labels_series)
+                # save random seed used for shuffling as dataset attribute
+                shuffle_ds.attrs['shuffle_seed'] = shuffle_seed
+                # save replicate shuffled dataset to netCDF4 file
+                shuffle_ds.to_netcdf(filepath_shuffle_ds)
             
-            # save replicate shuffled dataset to netCDF4 file
-            shuffle_ds.to_netcdf(output_dir / 'dataset_bootstrap_{}.nc'.format(boot_id))
-            
-            # separate out replicate subtensors
-            replicate_sets = separate_replicates(shuffle_ds, ['ortholog', 'clade', 'samplename'], 'residual')
-            
-            # generate simulated replicates
+            # set up replicate subtensor data
+            filepaths_reps = {}
             for rep in replicates:
-                print('\nFitting replicate {} models\n'.format(rep), flush=True)
-                
-                # make a new directory
                 path = output_dir / 'replicate{}'.format(rep)
-                if not path.exists():
+                if not path.is_dir():
                     path.mkdir(parents=True)
-                
-                # save shuffled replicate data
+                # collect all filepaths
+                filepaths_reps[rep] = path / 'shuffled_replicate_{}.nc'.format(rep, rep)
+            # check if all replicate dataarrays exist or not
+            all_reps_saved = np.all([filepaths_reps[f].is_file() for f in replicates])
+            # import replicate subtensors if the saved files exist
+            if all_reps_saved:
+                print('Importing replicate DataArrays discovered at:\n{}'.format(
+                    json.dumps({i: str(k) for i, k in filepaths_reps.items()}, indent=4)
+                ), flush=True)
+                replicate_sets = {}
+                for rep in replicates:
+                    replicate_sets[rep] = xr.open_dataarray(filepaths_reps[rep])
+            # otherwise separate out replicate sets from shuffled tensor
+            else:
+                print('Separating shuffled replicate DataArrays', flush=True)
+                replicate_sets = separate_replicates(
+                    shuffle_ds, 
+                    ['ortholog', 'clade', 'samplename'], 
+                    'residual'
+                )
+                for rep in replicates:
+                    # save shuffled replicate data
+                    replicate_sets[rep].to_netcdf(filepaths_reps[rep])
+            
+            # fit grid search models to each replicate dataset
+            for rep in replicates:
+                # pull out shuffled replicate data
                 tensor = replicate_sets[rep]
-                tensor.to_netcdf(path / 'shuffled_replicate_{}.nc'.format(rep))
-        
-                # instantiate models, with reproducible random seed for each
-                models = [SparseCP(**p, random_state=rns.randint(2**32)) for p in param_grid]
+                
+                # instantiate models and define output filepaths
+                models = []
+                dirpaths_models = []
+                for params in param_grid:
+                    model_seed = rns.randint(2**32)
+                    model_dir = output_dir / 'replicate{}/rank{}/lambda{}'.format(
+                        rep, params['rank'], params['lambdas'][0]
+                    )
+                    filepath_fitted = model_dir / 'fitted_model.h5'
+                    # don't re-fit any models that have already been fitted
+                    if not filepath_fitted.is_file():
+                        # instantiate parameterized model
+                        models.append(SparseCP(**params, random_state=model_seed))
+                        dirpaths_models.append(model_dir)
+                        
+                print(models)
+                print(dirpaths_models)
+
+                # continue to next set of replicates if all models have already been fit
+                if len(models) == 0:
+                    print(
+                        """
+                        Pre-existing models discovered, skipping fitting to following dataset:
+                            bootstrap = {}
+                            replicate = {}
+                        """.format(boot_id, rep), 
+                        flush=True
+                    )
+                    continue
+                else:
+                    print('\nFitting replicate {} models\n'.format(rep), flush=True)
 
                 # assemble job parameters
                 job_params = (
                     models, 
                     [tensor.data for m in models], 
-                    [path / 'rank{}'.format(m.rank) / 'lambda{}'.format(m.lambdas[0]) for m in models], 
+                    dirpaths_models, 
                     [{'threads': 1, 'verbose': 0} for m in models]
                 )
                     
@@ -392,17 +471,16 @@ def main():
                 
                     # save data
                     fitting_df = pd.DataFrame(fitting_results)
-                    fitting_df.to_csv(base_dir / 'fitting_data.csv', index=False)
+                    fitting_df.to_csv(filepath_fit_data, index=False)
                 
                 # shut down executor
                 executor.shutdown()
 
         # collect cross validation results
-        print('\nBeginning cross validataion calculations...', flush=True)
+        print('\nBeginning cross validataion calculations\n', flush=True)
         for boot_id in range(n_bootstraps):
             # set path of bootstrap data
             boot_path = base_dir / 'bootstrap{}'.format(boot_id)
-            print('\tbootstrap {}'.format(boot_id), flush=True)
             # read in shuffled replicate data
             rep_data = {}
             for rep in replicates:
@@ -418,6 +496,31 @@ def main():
                     cps[rep] = load_cp_tensor(cp_path / 'fitted_model.h5')
                 for modeled_rep in replicates:
                     for comparison_rep in replicates:
+                        print_string = 'bootstrap: {}, rank: {}, lambda: {}, modeled: {}, comparison: {}'.format(
+                            boot_id, 
+                            params['rank'], 
+                            params['lambdas'][0], 
+                            modeled_rep, 
+                            comparison_rep
+                        )
+                        # check if comparison has already been calculated
+                        record = cv_df.loc[(
+                            (cv_df['bootstrap_id'] == boot_id) & 
+                            (cv_df['rank'] == params['rank']) & 
+                            (cv_df['lambda'] == params['lambdas'][0]) & 
+                            (cv_df['modeled_replicate'] == modeled_rep) & 
+                            (cv_df['comparison_replicate'] == comparison_rep)
+                        )]
+                        if len(record) >= 1:
+                            print(
+                                'Pre-existing record found, ' + 
+                                'skipping following comparison:\n\t{}'.format(print_string), 
+                                flush=True
+                            )
+                            continue
+                        else:
+                            print(print_string, flush=True)
+                        
                         # find common samples
                         subset_cps = {}
                         if modeled_rep != comparison_rep:
@@ -481,11 +584,11 @@ def main():
                                 'css_cv_factor0': css_cv, 
                                 'scss_cv_factor0': scss_cv, 
                             }
-                        ) 
+                        )
                         # store results in dataframe
                         cv_df = pd.DataFrame(cv_results)
             # save data
-            cv_df.to_csv(base_dir / 'cv_data.csv', index=False)
+            cv_df.to_csv(filepath_cv_data, index=False)
 
 if __name__ == "__main__":
   main()
