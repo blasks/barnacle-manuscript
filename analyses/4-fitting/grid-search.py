@@ -394,9 +394,6 @@ def main():
                         # instantiate parameterized model
                         models.append(SparseCP(**params, random_state=model_seed))
                         dirpaths_models.append(model_dir)
-                        
-                print(models)
-                print(dirpaths_models)
 
                 # continue to next set of replicates if all models have already been fit
                 if len(models) == 0:
