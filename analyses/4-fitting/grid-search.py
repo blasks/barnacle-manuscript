@@ -270,14 +270,14 @@ def main():
     
         # output directory and experiment parameters
         base_dir = Path('../../data/4-fitting/{}'.format(cyano))
-        n_bootstraps = 10
+        n_bootstraps = 1
         replicates = ['A', 'B', 'C']
         n_replicates = len(replicates) 
         
         # define model grid search parameters
         model_params = {
-            'rank': [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50], 
-            'lambdas': [[i, 0.0, 0.0] for i in [0., 0.5, 1., 2., 4., 8., 16., 32., 64.]], 
+            'rank': [1, 10, 20, 30, 40, 50, 60, 70], 
+            'lambdas': [[i, 0.0, 0.0] for i in [0., 0.01, 0.1, 1., 10., 100.]], 
             'nonneg_modes': [[1, 2]],
             'tol': [1e-6], 
             'n_iter_max': [1000], 
