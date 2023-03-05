@@ -8,6 +8,7 @@ data/
 *.png
 *.jpg
 *.svg
+*.afdesign
 
 # jupyter notebook checkpoint files
 .ipynb_checkpoints/
