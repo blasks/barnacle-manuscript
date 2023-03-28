@@ -296,162 +296,162 @@ def main():
     }
     param_grid = list(ParameterGrid(model_params))
     
-    # # begin experiment
-    # for sim_id in range(n_simulations):
-    #     output_dir = base_dir / 'sim{}'.format(sim_id)
-    #     # make path directories if they don't exist yet
-    #     if not output_dir.exists():
-    #         output_dir.mkdir(parents=True)
+    # begin experiment
+    for sim_id in range(n_simulations):
+        output_dir = base_dir / 'sim{}'.format(sim_id)
+        # make path directories if they don't exist yet
+        if not output_dir.exists():
+            output_dir.mkdir(parents=True)
         
-    #     # set simulation parameters
-    #     sim_p = {}
-    #     sim_p['id'] = sim_id
-    #     sim_p['shape'] = [int(rns.choice(pool)) for pool in sim_shape_pools]
-    #     sim_p['rank'] = int(rns.choice(sim_rank_pool))
-    #     min_densities = [1/s for s in sim_p['shape']]
-    #     # draw densities until they are above the minimum necessary so that
-    #     # all factor matricies are full rank
-    #     densities_above_mins = False
-    #     while not densities_above_mins:
-    #         sim_p['densities'] = [d for d in sim_density_dist.rvs(len(sim_p['shape']))]
-    #         densities_above_mins = np.all([d > min_densities[i] for i, d in enumerate(sim_p['densities'])]) 
-    #     sim_p['noise_level'] = 10 ** sim_noise_level_dist.rvs()
+        # set simulation parameters
+        sim_p = {}
+        sim_p['id'] = sim_id
+        sim_p['shape'] = [int(rns.choice(pool)) for pool in sim_shape_pools]
+        sim_p['rank'] = int(rns.choice(sim_rank_pool))
+        min_densities = [1/s for s in sim_p['shape']]
+        # draw densities until they are above the minimum necessary so that
+        # all factor matricies are full rank
+        densities_above_mins = False
+        while not densities_above_mins:
+            sim_p['densities'] = [d for d in sim_density_dist.rvs(len(sim_p['shape']))]
+            densities_above_mins = np.all([d > min_densities[i] for i, d in enumerate(sim_p['densities'])]) 
+        sim_p['noise_level'] = 10 ** sim_noise_level_dist.rvs()
         
-    #     # re-seed simulated data until all factor matrices are full rank
-    #     full_rank = False
-    #     while not full_rank:
-    #         # generate new seed from rns
-    #         sim_p['seed'] = rns.randint(2**32)
-    #         # generate SparseCP simulated data tensor
-    #         sim_tensor = simulated_sparse_tensor(
-    #             shape=sim_p['shape'],                
-    #             rank=sim_p['rank'],                         
-    #             densities=sim_p['densities'], 
-    #             factor_dist_list=sim_dist_list, 
-    #             random_state=sim_p['seed']
-    #         )
-    #         # check that all factors are full rank
-    #         full_rank = np.all([np.linalg.matrix_rank(f) == sim_p['rank'] for f in sim_tensor.factors])
-    #     # save parameters of successful simulation
-    #     sim_params.append(sim_p)
-    #     with open(output_dir / 'simulation_parameters.txt', 'w') as f:
-    #         f.write(json.dumps(sim_p, indent=4))
-    #     print('Beginning simulation {}: {}'.format(sim_id, sim_tensor), flush=True)
+        # re-seed simulated data until all factor matrices are full rank
+        full_rank = False
+        while not full_rank:
+            # generate new seed from rns
+            sim_p['seed'] = rns.randint(2**32)
+            # generate SparseCP simulated data tensor
+            sim_tensor = simulated_sparse_tensor(
+                shape=sim_p['shape'],                
+                rank=sim_p['rank'],                         
+                densities=sim_p['densities'], 
+                factor_dist_list=sim_dist_list, 
+                random_state=sim_p['seed']
+            )
+            # check that all factors are full rank
+            full_rank = np.all([np.linalg.matrix_rank(f) == sim_p['rank'] for f in sim_tensor.factors])
+        # save parameters of successful simulation
+        sim_params.append(sim_p)
+        with open(output_dir / 'simulation_parameters.txt', 'w') as f:
+            f.write(json.dumps(sim_p, indent=4))
+        print('Beginning simulation {}: {}'.format(sim_id, sim_tensor), flush=True)
         
-    #     # store ground truth simulated dataset
-    #     store_cp_tensor(sim_tensor, output_dir / 'simulation_ground_truth.h5')
+        # store ground truth simulated dataset
+        store_cp_tensor(sim_tensor, output_dir / 'simulation_ground_truth.h5')
         
-    #     # save plot of simulation factors
-    #     heatmap_params = {'vmin':-1, 'vmax':1, 'cmap':'coolwarm', 'center':0}
-    #     fig, ax = plot_factors_heatmap(
-    #         tl.cp_normalize(sim_tensor).factors, 
-    #         mask_thold=[0, 0], 
-    #         ratios=False, 
-    #         heatmap_kwargs=heatmap_params)
-    #     fig.savefig(output_dir / 'simulation_factors.png')     
+        # save plot of simulation factors
+        heatmap_params = {'vmin':-1, 'vmax':1, 'cmap':'coolwarm', 'center':0}
+        fig, ax = plot_factors_heatmap(
+            tl.cp_normalize(sim_tensor).factors, 
+            mask_thold=[0, 0], 
+            ratios=False, 
+            heatmap_kwargs=heatmap_params)
+        fig.savefig(output_dir / 'simulation_factors.png')     
         
-    #     # generate simulated replicates
-    #     for rep in replicates:
-    #         print('\nFitting replicate {} models\n'.format(rep), flush=True)
+        # generate simulated replicates
+        for rep in replicates:
+            print('\nFitting replicate {} models\n'.format(rep), flush=True)
             
-    #         # make a new directory
-    #         path = output_dir / 'replicate{}'.format(rep)
-    #         if not path.exists():
-    #             path.mkdir(parents=True)
+            # make a new directory
+            path = output_dir / 'replicate{}'.format(rep)
+            if not path.exists():
+                path.mkdir(parents=True)
                 
-    #         # generate unique noisy tensor
-    #         tensor = sim_tensor.to_tensor(
-    #             noise_level=sim_p['noise_level'], 
-    #             sparse_noise=True, 
-    #             random_state=rns
-    #         )
+            # generate unique noisy tensor
+            tensor = sim_tensor.to_tensor(
+                noise_level=sim_p['noise_level'], 
+                sparse_noise=True, 
+                random_state=rns
+            )
             
-    #         # save simulated replicate data
-    #         da = xr.DataArray(tensor)
-    #         da.to_netcdf(path / 'simulation_data_replicate_{}.nc'.format(rep))
+            # save simulated replicate data
+            da = xr.DataArray(tensor)
+            da.to_netcdf(path / 'simulation_data_replicate_{}.nc'.format(rep))
     
-    #         # instantiate models, with reproducible random seed for each
-    #         models = [SparseCP(**p, random_state=rns.randint(2**32)) for p in param_grid]
+            # instantiate models, with reproducible random seed for each
+            models = [SparseCP(**p, random_state=rns.randint(2**32)) for p in param_grid]
 
-    #         # assemble job parameters
-    #         job_params = (
-    #             models, 
-    #             [tensor for m in models], 
-    #             [path / 'rank{}'.format(m.rank) / 'lambda{}'.format(m.lambdas[0]) for m in models], 
-    #             [{'threads': 1, 'verbose': 0} for m in models]
-    #         )
+            # assemble job parameters
+            job_params = (
+                models, 
+                [tensor for m in models], 
+                [path / 'rank{}'.format(m.rank) / 'lambda{}'.format(m.lambdas[0]) for m in models], 
+                [{'threads': 1, 'verbose': 0} for m in models]
+            )
                 
-    #         # run jobs 
-    #         executor = ProcessPoolExecutor()
-    #         fit_models = executor.map(fit_save_model, *job_params)
+            # run jobs 
+            executor = ProcessPoolExecutor()
+            fit_models = executor.map(fit_save_model, *job_params)
                 
-    #         # iterate through models in order
-    #         for model in fit_models:
+            # iterate through models in order
+            for model in fit_models:
                 
-    #             # calculate metrics
-    #             rank = model.rank
-    #             lamb = model.lambdas[0]
-    #             best_init = model._best_cp_index
-    #             loss = model.loss_[-1]
-    #             cvg_iter = len(model.loss_)
-    #             data_sse = relative_sse(model.decomposition_, tensor)
-    #             model_sse = relative_sse(model.decomposition_, sim_tensor.to_tensor())
-    #             fms = factor_match_score(model.decomposition_, sim_tensor, consider_weights=False, allow_smaller_rank=True)
-    #             degeneracy = degeneracy_score(model.decomposition_)
-    #             cc = core_consistency(model.decomposition_, tensor)
-    #             monotonicity = np.all(np.diff(model.loss_) < 0)
-    #             can_mon = [np.all(np.diff(l) < 0) for l in model.candidate_losses_]
-    #             can_fms = [factor_match_score(model.decomposition_, c, consider_weights=False, allow_smaller_rank=True) for c in model.candidates_]
-    #             can_sse = [relative_sse(c, tensor) for c in model.candidates_]
+                # calculate metrics
+                rank = model.rank
+                lamb = model.lambdas[0]
+                best_init = model._best_cp_index
+                loss = model.loss_[-1]
+                cvg_iter = len(model.loss_)
+                data_sse = relative_sse(model.decomposition_, tensor)
+                model_sse = relative_sse(model.decomposition_, sim_tensor.to_tensor())
+                fms = factor_match_score(model.decomposition_, sim_tensor, consider_weights=False, allow_smaller_rank=True)
+                degeneracy = degeneracy_score(model.decomposition_)
+                cc = core_consistency(model.decomposition_, tensor)
+                monotonicity = np.all(np.diff(model.loss_) < 0)
+                can_mon = [np.all(np.diff(l) < 0) for l in model.candidate_losses_]
+                can_fms = [factor_match_score(model.decomposition_, c, consider_weights=False, allow_smaller_rank=True) for c in model.candidates_]
+                can_sse = [relative_sse(c, tensor) for c in model.candidates_]
                 
-    #             # record metrics
-    #             fitting_results.append(
-    #                 {
-    #                     'datetime': datetime.datetime.now(), 
-    #                     'simulation_id': sim_id, 
-    #                     'replicate': rep, 
-    #                     'rank': rank, 
-    #                     'lambda': lamb, 
-    #                     'best_init': best_init, 
-    #                     'loss': loss, 
-    #                     'convergence_iterations': cvg_iter, 
-    #                     'data_sse': data_sse, 
-    #                     'model_sse': model_sse, 
-    #                     'fms': fms, 
-    #                     'degeneracy': degeneracy, 
-    #                     'core_consistency': cc, 
-    #                     'monotonicity': monotonicity, 
-    #                     'candidate_monotonicity': can_mon, 
-    #                     'candidate_fms': can_fms, 
-    #                     'candidate_sse': can_sse
-    #                 }
-    #             )
+                # record metrics
+                fitting_results.append(
+                    {
+                        'datetime': datetime.datetime.now(), 
+                        'simulation_id': sim_id, 
+                        'replicate': rep, 
+                        'rank': rank, 
+                        'lambda': lamb, 
+                        'best_init': best_init, 
+                        'loss': loss, 
+                        'convergence_iterations': cvg_iter, 
+                        'data_sse': data_sse, 
+                        'model_sse': model_sse, 
+                        'fms': fms, 
+                        'degeneracy': degeneracy, 
+                        'core_consistency': cc, 
+                        'monotonicity': monotonicity, 
+                        'candidate_monotonicity': can_mon, 
+                        'candidate_fms': can_fms, 
+                        'candidate_sse': can_sse
+                    }
+                )
                 
-    #             # # make optimization diagnostic plot
-    #             # fig, axes = optimisation_diagnostic_plots(model.candidate_losses_, model.n_iter_max)
-    #             # fig.savefig(path / 'optimization_diagnostic.png')
-    #             # fig.close()
+                # # make optimization diagnostic plot
+                # fig, axes = optimisation_diagnostic_plots(model.candidate_losses_, model.n_iter_max)
+                # fig.savefig(path / 'optimization_diagnostic.png')
+                # fig.close()
                 
-    #             # print some metrics
-    #             print('rank:{}, lambda:{}, sse:{}, fms:{}'.format(
-    #                 rank, 
-    #                 lamb, 
-    #                 data_sse, 
-    #                 fms
-    #             ), flush=True)
+                # print some metrics
+                print('rank:{}, lambda:{}, sse:{}, fms:{}'.format(
+                    rank, 
+                    lamb, 
+                    data_sse, 
+                    fms
+                ), flush=True)
             
-    #             # save data
-    #             fitting_df = pd.DataFrame(fitting_results)
-    #             fitting_df[fitting_df['simulation_id'] == sim_id].to_csv(
-    #                 output_dir / 'fitting_data.csv', 
-    #                 index=False
-    #             )
+                # save data
+                fitting_df = pd.DataFrame(fitting_results)
+                fitting_df[fitting_df['simulation_id'] == sim_id].to_csv(
+                    output_dir / 'fitting_data.csv', 
+                    index=False
+                )
             
-    #         # shut down executor
-    #         executor.shutdown()
+            # shut down executor
+            executor.shutdown()
     
-    # # save combined fitting data to base directory
-    # fitting_df.to_csv(base_dir / 'fitting_data_combined.csv', index=False)
+    # save combined fitting data to base directory
+    fitting_df.to_csv(base_dir / 'fitting_data_combined.csv', index=False)
 
     # collect cross validation results
     for sim_id in range(n_simulations):
