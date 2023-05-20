@@ -256,7 +256,9 @@ def nonzero_components(cp, return_trimmed_cp=False):
 def main():
     
     # output directory and experiment parameters
-    base_dir = Path('data')
+    base_dir = Path('../../data/1-simulation')
+    filepath_fit_data = base_dir / 'fitting_data.csv'
+    filepath_cv_data = base_dir / 'cv_data.csv'
     n_simulations = 100
     replicates = ['A', 'B', 'C']
     n_replicates = len(replicates) 
@@ -288,7 +290,8 @@ def main():
     # model parameters
     model_params = {
         'rank': [int(i) for i in np.linspace(1, 12, 12)], 
-        'lambdas': [[i, 0.0, 0.0] for i in [0.0, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0]], 
+        # 'lambdas': [[i, 0.0, 0.0] for i in [0.0, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0]], 
+        'lambdas': [[i, 0.0, 0.0] for i in [0.0, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4, 12.8]], 
         'nonneg_modes': [[1, 2]],
         'tol': [1e-6], 
         'n_iter_max': [1000], 
@@ -427,11 +430,6 @@ def main():
                     }
                 )
                 
-                # # make optimization diagnostic plot
-                # fig, axes = optimisation_diagnostic_plots(model.candidate_losses_, model.n_iter_max)
-                # fig.savefig(path / 'optimization_diagnostic.png')
-                # fig.close()
-                
                 # print some metrics
                 print('rank:{}, lambda:{}, sse:{}, fms:{}'.format(
                     rank, 
@@ -442,10 +440,12 @@ def main():
             
                 # save data
                 fitting_df = pd.DataFrame(fitting_results)
-                fitting_df[fitting_df['simulation_id'] == sim_id].to_csv(
-                    output_dir / 'fitting_data.csv', 
-                    index=False
-                )
+                fitting_df.to_csv(filepath_fit_data, index=False)
+                # fitting_df = pd.DataFrame(fitting_results)
+                # fitting_df[fitting_df['simulation_id'] == sim_id].to_csv(
+                #     output_dir / 'fitting_data.csv', 
+                #     index=False
+                # )
             
             # shut down executor
             executor.shutdown()
@@ -559,7 +559,7 @@ def main():
         # save data for each simulation separately
         cv_df[cv_df['simulation_id'] == sim_id].to_csv(sim_path / 'cv_data.csv', index=False)
     # save copy of all results combined
-    cv_df.to_csv(base_dir / 'cv_data_combined.csv', index=False)
+    cv_df.to_csv(filepath_cv_data, index=False)
 
 if __name__ == "__main__":
   main()
