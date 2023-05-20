@@ -1,8 +1,9 @@
 # data files
 *.gz
 
-# data directories
+# directories
 data/
+models/
 
 # figures
 *.png
