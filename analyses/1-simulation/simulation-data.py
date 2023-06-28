@@ -16,7 +16,7 @@ from sklearn.model_selection import ParameterGrid
 import tensorly as tl
 from tensorly import check_random_state
 from tensorly.cp_tensor import CPTensor
-from ncistd import (
+from barnacle import (
     SparseCP, 
     simulated_sparse_tensor, 
     visualize_3d_tensor, 
@@ -24,7 +24,7 @@ from ncistd import (
     recovery_relevance, 
     pairs_precision_recall
 )
-from ncistd.tensors import SparseCPTensor
+from barnacle.tensors import SparseCPTensor
 from tlab.cp_tensor import store_cp_tensor, load_cp_tensor
 from tlviz.visualisation import optimisation_diagnostic_plots
 from tlviz.model_evaluation import relative_sse, core_consistency
@@ -206,7 +206,7 @@ def fit_save_model(model, data, path, fit_params):
     
     Parameters
     ----------
-    model : ncistd.SparseCP
+    model : barnacle.SparseCP
         Instantiated and parameterized SparseCP model.
     data : numpy.ndarray
         Input data tensor.
@@ -220,7 +220,7 @@ def fit_save_model(model, data, path, fit_params):
             
     Returns
     -------
-    model : ncistd.SparseCP
+    model : barnacle.SparseCP
         Fit model.
     '''
     if path is not None:

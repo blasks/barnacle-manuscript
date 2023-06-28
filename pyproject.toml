@@ -1,11 +1,11 @@
 [tool.poetry]
-name = "stromatolite-paper"
+name = "barnacle-manuscript"
 version = "0.1.0"
-description = "repository to organize the scripts, analyses, figures, and latex files for the publication linked to stromatolite"
+description = "repository to organize the scripts, analyses, figures, and latex files for the publication linked to barnacle"
 authors = ["Stephen Blaskowski <stephen.blaskowski@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-packages = [{include = "stromatolite_paper"}]
+packages = [{include = "barnacle-manuscript"}]
 
 [tool.poetry.dependencies]
 python = ">=3.10 <3.12"
@@ -21,7 +21,7 @@ scikit-learn = "^1.2.1"
 numba = "^0.56.4"
 umap-learn = "^0.5.3"
 tensorly = "^0.8.0"
-ncistd = {git = "https://github.com/blasks/ncistd.git"}
+barnacle = {git = "https://github.com/blasks/barnacle.git"}
 tensorly-lab = {git = "https://github.com/tensorly/lab.git"}
 h5py = "^3.8.0"
 

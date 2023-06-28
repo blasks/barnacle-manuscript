@@ -19,7 +19,7 @@ from sklearn.model_selection import ParameterGrid
 import tensorly as tl
 from tensorly import check_random_state
 from tensorly.cp_tensor import CPTensor
-from ncistd import (
+from barnacle import (
     SparseCP, 
     simulated_sparse_tensor, 
     visualize_3d_tensor, 
@@ -27,7 +27,7 @@ from ncistd import (
     recovery_relevance, 
     pairs_precision_recall
 )
-from ncistd.tensors import SparseCPTensor
+from barnacle.tensors import SparseCPTensor
 from tlab.cp_tensor import store_cp_tensor, load_cp_tensor
 from tlviz.visualisation import optimisation_diagnostic_plots
 from tlviz.model_evaluation import relative_sse, core_consistency
@@ -209,7 +209,7 @@ def fit_save_model(model, data, path, fit_params):
     
     Parameters
     ----------
-    model : ncistd.SparseCP
+    model : barnacle.SparseCP
         Instantiated and parameterized SparseCP model.
     data : numpy.ndarray
         Input data tensor.
@@ -223,7 +223,7 @@ def fit_save_model(model, data, path, fit_params):
             
     Returns
     -------
-    model : ncistd.SparseCP
+    model : barnacle.SparseCP
         Fit model.
     '''
     if path is not None:
@@ -269,17 +269,20 @@ def main():
         ))
     
         # output directory and experiment parameters
-        base_dir = Path('../../data/4-fitting/{}'.format(cyano))
-        n_bootstraps = 10
+        # base_dir = Path('../../data/4-fitting/{}'.format(cyano))
+        base_dir = Path('../../data/fitting-test/{}'.format(cyano))
+        n_bootstraps = 1
         replicates = ['A', 'B', 'C']
         n_replicates = len(replicates) 
         
-        # define model grid search parameters
+        # define model grid search param
         model_params = {
-            'rank': [25, 30, 35], 
-            'lambdas': [[i, 0.0, 0.0] for i in [4., 6., 8., 10., 12., 14., 16., 18., 20., 22., 24., 26., 28., 30., 32.]], 
+            # 'rank': [1, 10, 20, 30, 40, 50], 
+            'rank': [1, 10, 20, 30, 40, 50], 
+            'lambdas': [[i, 0.0, 0.0] for i in [0., 0.1, 1.0, 10.0, 100.0]], 
+            # 'lambdas': [[i, 0.0, 0.0] for i in [0., 0.1, 1., 2., 4., 8., 16., 32., 64.]], 
             'nonneg_modes': [[1, 2]],
-            'tol': [1e-6], 
+            'tol': [1e-5], 
             'n_iter_max': [1000], 
             'n_initializations': [5]
         }
@@ -300,11 +303,16 @@ def main():
             cv_df = pd.read_csv(filepath_cv_data)
             cv_results = cv_df.to_dict('records')
         else:
-            cv_df = pd.DataFrame()
+            cv_df = pd.DataFrame(
+                columns=['bootstrap_id', 'rank', 'lambda', 'modeled_replicate', 
+                         'comparison_replicate', 'replicate_pair', 'n_components', 
+                         'mean_gene_sparsity', 'relative_sse', 'fms_cv', 
+                         'css_cv_factor0', 'scss_cv_factor0']
+                )
             cv_results = []
         
         # import xarray DataSet (NetCDF4 file)
-        dataset = xr.open_dataset('../../data/3-normalization/{}-tensor-dataset.nc'.format(cyano))
+        dataset = xr.open_dataset('../../analyses/3-normalization/batch-test/{}-tensor-dataset.nc'.format(cyano))
         shuffle_ds = dataset.copy()
         
         # begin experiment
