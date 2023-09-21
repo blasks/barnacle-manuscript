@@ -4,6 +4,7 @@
 # directories
 data/
 models/
+development/
 
 # figures
 *.png

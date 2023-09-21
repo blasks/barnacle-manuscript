@@ -264,23 +264,26 @@ def main():
     
     # analyze both pro & syn
     for cyano in ['syn', 'pro']:
+    # for cyano in ['pro']:
         print('\n\nBeginning {} calculations\n'.format(
             {'pro': 'Prochlorococcus', 'syn': 'Synechococcus'}[cyano]
         ))
     
         # output directory and experiment parameters
         # base_dir = Path('../../data/4-fitting/{}'.format(cyano))
-        base_dir = Path('../../data/fitting-test/{}'.format(cyano))
-        n_bootstraps = 1
+        base_dir = Path('../../development/batch-correction/models/{}'.format(cyano))
+        n_bootstraps = 10
         replicates = ['A', 'B', 'C']
         n_replicates = len(replicates) 
         
         # define model grid search param
         model_params = {
-            # 'rank': [1, 10, 20, 30, 40, 50], 
-            'rank': [1, 10, 20, 30, 40, 50], 
-            'lambdas': [[i, 0.0, 0.0] for i in [0., 0.1, 1.0, 10.0, 100.0]], 
-            # 'lambdas': [[i, 0.0, 0.0] for i in [0., 0.1, 1., 2., 4., 8., 16., 32., 64.]], 
+            # 'rank': [1, 5, 10, 15, 20], 
+            # 'rank': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], 
+            'rank': [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50], 
+            # 'lambdas': [[i, 0.0, 0.0] for i in [16.0]], 
+            'lambdas': [[i, 0.0, 0.0] for i in [0.0, 0.1, 1.0, 10.0, 100.0]], 
+            # 'lambdas': [[i, 0.0, 0.0] for i in [1., 2., 4., 8., 16., 32., 64.]], 
             'nonneg_modes': [[1, 2]],
             'tol': [1e-5], 
             'n_iter_max': [1000], 
@@ -312,7 +315,8 @@ def main():
             cv_results = []
         
         # import xarray DataSet (NetCDF4 file)
-        dataset = xr.open_dataset('../../analyses/3-normalization/batch-test/{}-tensor-dataset.nc'.format(cyano))
+        dataset = xr.open_dataset('../../development/batch-correction/data/v2-batch-t=0.01/{}-tensor-dataset.nc'.format(cyano))
+        # dataset = xr.open_dataset('../../analyses/3-normalization/batch-test/{}-tensor-dataset.nc'.format(cyano))
         shuffle_ds = dataset.copy()
         
         # begin experiment
