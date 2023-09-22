@@ -21,9 +21,9 @@ scikit-learn = "^1.2.1"
 numba = "^0.56.4"
 umap-learn = "^0.5.3"
 tensorly = "^0.8.0"
-barnacle = {git = "https://github.com/blasks/barnacle.git"}
 tensorly-lab = {git = "https://github.com/tensorly/lab.git"}
 h5py = "^3.8.0"
+barnacle = {git = "https://github.com/blasks/barnacle.git"}
 
 
 [build-system]
