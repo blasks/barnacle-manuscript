@@ -23,6 +23,7 @@ tensorly = "^0.8.1"
 tensorly-lab = {git = "https://github.com/tensorly/lab.git"}
 barnacle = {git = "https://github.com/blasks/barnacle.git"}
 pycmap = "^0.2.19"
+xlrd = "^2.0.1"
 
 [build-system]
 requires = ["poetry-core"]
