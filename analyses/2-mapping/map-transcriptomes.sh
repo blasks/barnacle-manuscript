@@ -10,11 +10,30 @@ set -o errexit
 # set -o xtrace
 
 # data inputs
-REFS=../../data/refseqs/pro-syn-virus-refseqs.genes.fna.gz
-FASTQ=../../data/fastq
+REFS="../../data/refseqs/pro-syn-virus-refseqs.genes.fna.gz"
+FASTQ="../../data/fastq"
+CONTAINER_DIR="../../containers"
 
 # data output
 MAPPINGS=../../data/2-mapping/collated_salmon_files.py
+
+####################################################
+# 0. Select Singularity or Docker containerization #
+####################################################
+CONTAINER=""
+while [ "${CONTAINER}" == "" ]; do
+    printf "\nPlease select an option:\n\n\t1 - singularity\n\t2 - docker\n\nEnter '1' or '2': "
+    read selection 
+    if [ "${selection}" == "1" ]; then
+        echo "Continuing with Singularity containerized workflow"
+        CONTAINER="singularity"
+    elif [ "${selection}" == "2" ]; then
+        echo "Continuing with Docker containerized workflow"
+        CONTAINER="docker"
+    else 
+        printf "\nInvalid selection\n"
+    fi
+done
 
 ############################
 # 1. Trim & QC fastq reads #

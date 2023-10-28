@@ -17,9 +17,9 @@ set -o errexit
 # set -o xtrace
 
 # data inputs
-GENOME_METADATA=../metadata/genome-metadata.csv
-GENOMES=genomes
-CYCOGS=../metadata/cycogs.tsv
+GENOME_METADATA="../metadata/genome-metadata.csv"
+GENOMES="genomes"
+CYCOGS="../metadata/cycogs.tsv"
 
 # data output
 REFS=pro-syn-virus-refseqs.genes.fna.gz
