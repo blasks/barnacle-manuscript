@@ -96,13 +96,14 @@ if [[ ! -d ${IDXDIR} ]]; then
             combinelab/salmon:1.10.2 salmon index \
             -t ${REFS} -i ${IDXDIR} -k 31 -p ${THREADS} --keepDuplicates
     fi
+else
+    printf "\n\t* Using salmon index found at ${IDXDIR}\n\n"
 fi
 
 # map data to reference
 i=1
 TOTAL=$( ls ${FASTQ}/defract/*.fw.fastq.gz | wc -l )
 for R1 in ${FASTQ}/defract/*.fw.fastq.gz; do 
-    echo ${R1}
     SAMPLE=$(basename ${R1})
     SAMPLE=${SAMPLE%.fw.fastq.gz}
     R2="${FASTQ}/defract/${SAMPLE}.rv.fastq.gz"
@@ -110,7 +111,7 @@ for R1 in ${FASTQ}/defract/*.fw.fastq.gz; do
     # quanitify with salmon
     if [[ ! -f ${OUTDIR}/quant.sf ]]; then
         mkdir -p ${OUTDIR}
-        printf "\nMapping sample ${i}/${TOTAL}: ${SAMPLE}\n\n"
+        printf "\n\t* Mapping sample ${i}/${TOTAL}: ${SAMPLE}\n\n"
         if [ "${CONTAINER}" == "singularity" ]; then
             singularity exec --bind ${BASEDIR}:${BASEDIR} ${CONTAINERDIR}/salmon.sif salmon quant \
                 -i ${IDXDIR} -l A -1 ${R1} -2 ${R2} -o ${OUTDIR} --validateMappings
