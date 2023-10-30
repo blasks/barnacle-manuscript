@@ -10,12 +10,15 @@ set -o errexit
 # set -o xtrace
 
 # data inputs
-REFS="../../data/refseqs/pro-syn-virus-refseqs.genes.fna.gz"
-FASTQ="../../data/fastq"
-CONTAINER_DIR="../../containers"
+BASEDIR=$(realpath "../../")
+REFS="${BASEDIR}/data/refseqs/pro-syn-virus-refseqs.genes.fna.gz"
+FASTQ="${BASEDIR}/data/fastq"
+CONTAINERDIR="${BASEDIR}/containers"
+THREADS=48
 
 # data output
-MAPPINGS=../../data/2-mapping/collated_salmon_files.py
+MAPDIR="${BASEDIR}/data/2-mapping/"
+MAPPINGS="${MAPDIR}/collated_salmon_data.csv.gz"
 
 ####################################################
 # 0. Select Singularity or Docker containerization #
@@ -23,11 +26,11 @@ MAPPINGS=../../data/2-mapping/collated_salmon_files.py
 CONTAINER=""
 while [ "${CONTAINER}" == "" ]; do
     printf "\nPlease select an option:\n\n\t1 - singularity\n\t2 - docker\n\nEnter '1' or '2': "
-    read selection 
-    if [ "${selection}" == "1" ]; then
+    read SELECTION 
+    if [ "${SELECTION}" == "1" ]; then
         echo "Continuing with Singularity containerized workflow"
         CONTAINER="singularity"
-    elif [ "${selection}" == "2" ]; then
+    elif [ "${SELECTION}" == "2" ]; then
         echo "Continuing with Docker containerized workflow"
         CONTAINER="docker"
     else 
@@ -35,25 +38,25 @@ while [ "${CONTAINER}" == "" ]; do
     fi
 done
 
-############################
-# 1. Trim & QC fastq reads #
-############################
-printf "\nStep 1: Preprocessing raw fastq reads\n"
-if [[ ! -e ${FASTQ} ]]; then
-    pushd ${FASTQ}
-    ./process-raw-reads.sh
-    popd
-fi
+# ############################
+# # 1. Trim & QC fastq reads #
+# ############################
+# printf "\nStep 1: Preprocessing raw fastq reads\n"
+# if [[ ! -e ${FASTQ} ]]; then
+#     pushd ${FASTQ}
+#     ./process-raw-reads.sh
+#     popd
+# fi
 
-#############################
-# 2. Combine size fractions #
-#############################
-printf "\nStep 2: Combining size fractions\n"
-if [[ ! -e ${FASTQ} ]]; then
-    pushd ${FASTQ}
-    ./combine-size-fractions.sh
-    popd
-fi
+# #############################
+# # 2. Combine size fractions #
+# #############################
+# printf "\nStep 2: Combining size fractions\n"
+# if [[ ! -e ${FASTQ} ]]; then
+#     pushd ${FASTQ}
+#     ./combine-size-fractions.sh
+#     popd
+# fi
 
 ##################################
 # 3. Compile reference sequences #
@@ -69,53 +72,59 @@ fi
 # 4. Map fastq reads against references #
 #########################################
 printf "\nStep 4: Mapping processed fastq reads against reference set\n"
-# # build singularity image from docker image
-# if [[ ! -e salmon_latest.sif ]]; then 
-#     singularity build salmon_latest.sif docker://combinelab/salmon
-# fi
 
-# # if necessary, build salmon index files and store in reference directory
-# for ref in $REFS; do
-#     ref=$(realpath ${ref})
-#     idxdir="$(dirname ${ref})/salmon_index"
-#     if [[ ! -d ${idxdir} ]]
-#     then
-#         # build index (keep duplicates to properly divide reads across identical txs)
-#         singularity exec --bind ${MOUNT} salmon_latest.sif salmon index \
-#             -t ${ref} -i ${idxdir} -k 31 -p ${THREADS} --keepDuplicates
-#     fi
-# done
+# build salmon container
+printf "\n\t* Checking ${CONTAINER} container\n\n"
+if [ "${CONTAINER}" == "singularity" ]; then
+    if [[ ! -e "${CONTAINERDIR}/salmon.sif" ]]; then 
+        singularity build "${CONTAINERDIR}/salmon.sif" docker://combinelab/salmon:1.10.2
+    fi
+elif [ "${CONTAINER}" == "docker" ]; then
+    docker pull combinelab/salmon:1.10.2
+fi
 
-# # map gradients data to combined reference
-# for ref in $REFS; do
-#     idxdir="$(dirname ${ref})/salmon_index"
-#     ref_set=$(basename ${ref})
-#     ref_set=${ref_set%.genes.renamed.fna.gz}
-#     mkdir -p data/${ref_set}
-#     i=0
-#     for dataset in `realpath ${TX_READS}`; do 
-#         for r1 in ${dataset}/*.fw.fastq.gz
-#         do 
-#             sample=$(basename ${r1})
-#             sample=${sample%.fw.fastq.gz}
-#             r2="${dataset}/${sample}.rv.fastq.gz"
-#             outdir=data/${ref_set}/${sample}
-#             # quanitify with salmon
-#             if [[ ! -f ${outdir}/quant.sf ]]; then
-#                 mkdir -p ${outdir}
-#                 printf "\nmapping sample #${i}: ${sample} vs reference ${ref_set}\n"
-#                 singularity exec --bind ${MOUNT} \
-#                     salmon_latest.sif salmon quant \
-#                     -i ${idxdir} -l A \
-#                     -1 ${r1} -2 ${r2} -o ${outdir} \
-#                     --dumpEq --validateMappings
-#             fi
-#             let i=$i+1
-#         done
-#     done
-#     # tar all mappings
-#     tar -czvf data/${ref_set}.tar.gz data/${ref_set}
-# done
+# if necessary, build salmon index files and store in reference directory
+IDXDIR="$(dirname ${REFS})/salmon_index"
+# build index (keep duplicates to properly divide reads across identical refs)
+if [[ ! -d ${IDXDIR} ]]; then
+    printf "\n\t* Building salmon index\n\n"
+    if [ "${CONTAINER}" == "singularity" ]; then
+        singularity exec --bind ${BASEDIR}:${BASEDIR} \ 
+            ${CONTAINERDIR}/salmon.sif salmon index \
+            -t ${REFS} -i ${IDXDIR} -k 31 -p ${THREADS} --keepDuplicates
+    elif [ "${CONTAINER}" == "docker" ]; then
+        docker run --mount type=bind,source=${BASEDIR},target=${BASEDIR} \
+            combinelab/salmon:1.10.2 salmon index \
+            -t ${REFS} -i ${IDXDIR} -k 31 -p ${THREADS} --keepDuplicates
+    fi
+fi
+
+# map data to reference
+i=1
+TOTAL=$( ls ${FASTQ}/defract/*.fw.fastq.gz | wc -l )
+for R1 in ${FASTQ}/defract/*.fw.fastq.gz; do 
+    echo ${R1}
+    # SAMPLE=$(basename ${R1})
+    # SAMPLE=${SAMPLE%.fw.fastq.gz}
+    # R2="${DATASET}/${SAMPLE}.rv.fastq.gz"
+    # OUTDIR="${MAPDIR}/salmon/${SAMPLE}"
+    # # quanitify with salmon
+    # if [[ ! -f ${OUTDIR}/quant.sf ]]; then
+    #     mkdir -p ${OUTDIR}
+    #     printf "\n\tMapping sample ${i}/${TOTAL}: ${SAMPLE}\n"
+    #     if [ "${CONTAINER}" == "singularity" ]; then
+    #         singularity exec --bind ${BASEDIR}
+    #             ${CONTAINERDIR}/salmon_latest.sif salmon quant \
+    #             -i ${IDXDIR} -l A \
+    #             -1 ${R1} -2 ${R2} -o ${OUTDIR} --validateMappings
+    #     elif [ "${CONTAINER}" == "docker" ]; then
+    #         docker run -v ${BASEDIR} combinelab/salmon:1.10.2 salmon index \
+    #             -t ${REF} -i ${IDXDIR} -k 31 -p ${THREADS} --keepDuplicates
+    #     fi
+        
+    # fi
+    # let i=$i+1
+done
 
 #######################
 # 5. Collate mappings #
