@@ -1,6 +1,9 @@
 # data files
 *.gz
 
+# image files
+*.sif
+
 # directories
 data/
 models/

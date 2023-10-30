@@ -112,7 +112,7 @@ for R1 in ${FASTQ}/defract/*.fw.fastq.gz; do
         mkdir -p ${OUTDIR}
         printf "\n\tMapping sample ${i}/${TOTAL}: ${SAMPLE}\n"
         if [ "${CONTAINER}" == "singularity" ]; then
-            singularity exec --bind ${BASEDIR}:${BASEDIR} ${CONTAINERDIR}/salmon_latest.sif salmon quant \
+            singularity exec --bind ${BASEDIR}:${BASEDIR} ${CONTAINERDIR}/salmon.sif salmon quant \
                 -i ${IDXDIR} -l A -1 ${R1} -2 ${R2} -o ${OUTDIR} --validateMappings
         elif [ "${CONTAINER}" == "docker" ]; then
             docker run --mount type=bind,source=${BASEDIR},target=${BASEDIR} \
