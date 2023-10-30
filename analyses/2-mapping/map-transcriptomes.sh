@@ -105,7 +105,7 @@ for R1 in ${FASTQ}/defract/*.fw.fastq.gz; do
     echo ${R1}
     SAMPLE=$(basename ${R1})
     SAMPLE=${SAMPLE%.fw.fastq.gz}
-    R2="${DATASET}/${SAMPLE}.rv.fastq.gz"
+    R2="${FASTQ}/defract/${SAMPLE}.rv.fastq.gz"
     OUTDIR="${MAPDIR}/salmon/${SAMPLE}"
     # quanitify with salmon
     if [[ ! -f ${OUTDIR}/quant.sf ]]; then
@@ -119,7 +119,6 @@ for R1 in ${FASTQ}/defract/*.fw.fastq.gz; do
                 combinelab/salmon:1.10.2 salmon quant \
                 -i ${IDXDIR} -l A -1 ${R1} -2 ${R2} -o ${OUTDIR} --validateMappings
         fi
-        
     fi
     let i=$i+1
 done
@@ -127,7 +126,7 @@ done
 #######################
 # 5. Collate mappings #
 #######################
-printf "\nStep 5: Collating mapping outputs\n"
+# printf "\nStep 5: Collating mapping outputs\n"
 # outdir=${mappings}/collated/$(basename ${mapping})
 # if [[ ! -e $outdir/collated_TPM_data.csv.gz ]]; then
 #     mkdir -p ${outdir}
