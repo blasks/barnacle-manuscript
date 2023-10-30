@@ -110,7 +110,7 @@ for R1 in ${FASTQ}/defract/*.fw.fastq.gz; do
     # quanitify with salmon
     if [[ ! -f ${OUTDIR}/quant.sf ]]; then
         mkdir -p ${OUTDIR}
-        printf "\n\tMapping sample ${i}/${TOTAL}: ${SAMPLE}\n"
+        printf "\nMapping sample ${i}/${TOTAL}: ${SAMPLE}\n\n"
         if [ "${CONTAINER}" == "singularity" ]; then
             singularity exec --bind ${BASEDIR}:${BASEDIR} ${CONTAINERDIR}/salmon.sif salmon quant \
                 -i ${IDXDIR} -l A -1 ${R1} -2 ${R2} -o ${OUTDIR} --validateMappings
