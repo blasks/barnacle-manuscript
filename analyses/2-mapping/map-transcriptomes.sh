@@ -89,8 +89,7 @@ IDXDIR="$(dirname ${REFS})/salmon_index"
 if [[ ! -d ${IDXDIR} ]]; then
     printf "\n\t* Building salmon index\n\n"
     if [ "${CONTAINER}" == "singularity" ]; then
-        singularity exec --bind ${BASEDIR}:${BASEDIR} \ 
-            ${CONTAINERDIR}/salmon.sif salmon index \
+        singularity exec --bind ${BASEDIR}:${BASEDIR} ${CONTAINERDIR}/salmon.sif salmon index \
             -t ${REFS} -i ${IDXDIR} -k 31 -p ${THREADS} --keepDuplicates
     elif [ "${CONTAINER}" == "docker" ]; then
         docker run --mount type=bind,source=${BASEDIR},target=${BASEDIR} \
@@ -104,26 +103,25 @@ i=1
 TOTAL=$( ls ${FASTQ}/defract/*.fw.fastq.gz | wc -l )
 for R1 in ${FASTQ}/defract/*.fw.fastq.gz; do 
     echo ${R1}
-    # SAMPLE=$(basename ${R1})
-    # SAMPLE=${SAMPLE%.fw.fastq.gz}
-    # R2="${DATASET}/${SAMPLE}.rv.fastq.gz"
-    # OUTDIR="${MAPDIR}/salmon/${SAMPLE}"
-    # # quanitify with salmon
-    # if [[ ! -f ${OUTDIR}/quant.sf ]]; then
-    #     mkdir -p ${OUTDIR}
-    #     printf "\n\tMapping sample ${i}/${TOTAL}: ${SAMPLE}\n"
-    #     if [ "${CONTAINER}" == "singularity" ]; then
-    #         singularity exec --bind ${BASEDIR}
-    #             ${CONTAINERDIR}/salmon_latest.sif salmon quant \
-    #             -i ${IDXDIR} -l A \
-    #             -1 ${R1} -2 ${R2} -o ${OUTDIR} --validateMappings
-    #     elif [ "${CONTAINER}" == "docker" ]; then
-    #         docker run -v ${BASEDIR} combinelab/salmon:1.10.2 salmon index \
-    #             -t ${REF} -i ${IDXDIR} -k 31 -p ${THREADS} --keepDuplicates
-    #     fi
+    SAMPLE=$(basename ${R1})
+    SAMPLE=${SAMPLE%.fw.fastq.gz}
+    R2="${DATASET}/${SAMPLE}.rv.fastq.gz"
+    OUTDIR="${MAPDIR}/salmon/${SAMPLE}"
+    # quanitify with salmon
+    if [[ ! -f ${OUTDIR}/quant.sf ]]; then
+        mkdir -p ${OUTDIR}
+        printf "\n\tMapping sample ${i}/${TOTAL}: ${SAMPLE}\n"
+        if [ "${CONTAINER}" == "singularity" ]; then
+            singularity exec --bind ${BASEDIR}:${BASEDIR} ${CONTAINERDIR}/salmon_latest.sif salmon quant \
+                -i ${IDXDIR} -l A -1 ${R1} -2 ${R2} -o ${OUTDIR} --validateMappings
+        elif [ "${CONTAINER}" == "docker" ]; then
+            docker run --mount type=bind,source=${BASEDIR},target=${BASEDIR} \
+                combinelab/salmon:1.10.2 salmon quant \
+                -i ${IDXDIR} -l A -1 ${R1} -2 ${R2} -o ${OUTDIR} --validateMappings
+        fi
         
-    # fi
-    # let i=$i+1
+    fi
+    let i=$i+1
 done
 
 #######################
