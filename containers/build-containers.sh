@@ -32,8 +32,8 @@ done
 if [ "${CONTAINER}" == "singularity" ]; then
     # Pull Singularity containers for tools in which one is maintained by the developer.
     singularity build salmon.sif docker://combinelab/salmon:1.10.2
-    # # build singularity image from tarball
-    # singularity build fastq-preprocess.sif docker-archive://fastq-preprocess.tar.gz
+    # build singularity image from tarball
+    singularity build barnacle.sif docker-archive://barnacle.tar.gz
 elif [ "${CONTAINER}" == "docker" ]; then
     # Pull Docker containers for tools in which one is maintained by the developer.
     docker pull combinelab/salmon:1.10.2

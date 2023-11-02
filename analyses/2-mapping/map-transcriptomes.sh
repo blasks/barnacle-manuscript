@@ -128,10 +128,25 @@ done
 # 5. Collate mappings #
 #######################
 printf "\nStep 5: Collating mapping outputs\n"
+# build barnacle container
+printf "\n\t* Checking ${CONTAINER} container\n"
+if [ "${CONTAINER}" == "singularity" ]; then
+    if [[ ! -e "${CONTAINERDIR}/salmon.sif" ]]; then 
+        singularity build "${CONTAINERDIR}/barnacle.sif" "docker-archive://${CONTAINERDIR}/barnacle.tar.gz"
+    fi
+elif [ "${CONTAINER}" == "docker" ]; then
+    # export poetry environment requirements
+    if [[ ! -e "${CONTAINERDIR}/requirements.txt" ]]; then
+        poetry export --without-hashes >> "${CONTAINERDIR}/requirements.txt"
+    fi
+    # make Docker containers from Dockerfiles
+    docker image build -t barnacle "${CONTAINERDIR}"
+fi
+printf "\n\t* Collating mapping files\n"
 if [[ ! -e ${MAPPINGS} ]]; then
     if [ "${CONTAINER}" == "singularity" ]; then
-        singularity exec --bind ${BASEDIR}:${BASEDIR} ${CONTAINERDIR}/salmon.sif salmon quant \
-            -i ${IDXDIR} -l A -1 ${R1} -2 ${R2} -o ${OUTDIR} --validateMappings
+        singularity exec --bind ${BASEDIR}:${BASEDIR} ${CONTAINERDIR}/barnacle.sif python \
+            "${BASEDIR}/analyses/2-mapping/collate_salmon_files.py" "${MAPDIR}/salmon/" "${MAPDIR}"
     elif [ "${CONTAINER}" == "docker" ]; then
         docker run --mount type=bind,source=${BASEDIR},target=${BASEDIR} barnacle python \
             "${BASEDIR}/analyses/2-mapping/collate_salmon_files.py" "${MAPDIR}/salmon/" "${MAPDIR}"
