@@ -74,7 +74,7 @@ fi
 printf "\nStep 4: Mapping processed fastq reads against reference set\n"
 
 # build salmon container
-printf "\n\t* Checking ${CONTAINER} container\n\n"
+printf "\n\t* Checking ${CONTAINER} container\n"
 if [ "${CONTAINER}" == "singularity" ]; then
     if [[ ! -e "${CONTAINERDIR}/salmon.sif" ]]; then 
         singularity build "${CONTAINERDIR}/salmon.sif" docker://combinelab/salmon:1.10.2
@@ -87,7 +87,7 @@ fi
 IDXDIR="$(dirname ${REFS})/salmon_index"
 # build index (keep duplicates to properly divide reads across identical refs)
 if [[ ! -d ${IDXDIR} ]]; then
-    printf "\n\t* Building salmon index\n\n"
+    printf "\n\t* Building salmon index\n"
     if [ "${CONTAINER}" == "singularity" ]; then
         singularity exec --bind ${BASEDIR}:${BASEDIR} ${CONTAINERDIR}/salmon.sif salmon index \
             -t ${REFS} -i ${IDXDIR} -k 31 -p ${THREADS} --keepDuplicates
@@ -97,7 +97,7 @@ if [[ ! -d ${IDXDIR} ]]; then
             -t ${REFS} -i ${IDXDIR} -k 31 -p ${THREADS} --keepDuplicates
     fi
 else
-    printf "\n\t* Using salmon index found at ${IDXDIR}\n\n"
+    printf "\n\t* Using salmon index found at ${IDXDIR}\n"
 fi
 
 # map data to reference
@@ -127,9 +127,13 @@ done
 #######################
 # 5. Collate mappings #
 #######################
-# printf "\nStep 5: Collating mapping outputs\n"
-# outdir=${mappings}/collated/$(basename ${mapping})
-# if [[ ! -e $outdir/collated_TPM_data.csv.gz ]]; then
-#     mkdir -p ${outdir}
-#     ../../bin/collate_salmon_files.py ${mapping} ${outdir}
-# fi
+printf "\nStep 5: Collating mapping outputs\n"
+if [[ ! -e ${MAPPINGS} ]]; then
+    if [ "${CONTAINER}" == "singularity" ]; then
+        singularity exec --bind ${BASEDIR}:${BASEDIR} ${CONTAINERDIR}/salmon.sif salmon quant \
+            -i ${IDXDIR} -l A -1 ${R1} -2 ${R2} -o ${OUTDIR} --validateMappings
+    elif [ "${CONTAINER}" == "docker" ]; then
+        docker run --mount type=bind,source=${BASEDIR},target=${BASEDIR} barnacle python \
+            "${BASEDIR}/analyses/2-mapping/collate_salmon_files.py" "${MAPDIR}/salmon/" "${MAPDIR}"
+    fi
+fi
