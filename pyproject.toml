@@ -20,10 +20,10 @@ rpy2 = "^3.5.14"
 netcdf4 = "^1.6.4"
 h5py = "^3.10.0"
 tensorly = "^0.8.1"
-tensorly-lab = {git = "https://github.com/tensorly/lab.git"}
-barnacle = {git = "https://github.com/blasks/barnacle.git"}
 pycmap = "^0.2.19"
 xlrd = "^2.0.1"
+tensorly-lab = {git = "https://github.com/tensorly/lab.git", rev = "f0695f0"}
+barnacle = {git = "https://github.com/blasks/barnacle.git", rev = "612b6a4"}
 
 [build-system]
 requires = ["poetry-core"]
