@@ -131,7 +131,7 @@ printf "\nStep 5: Collating mapping outputs\n"
 # build barnacle container
 printf "\n\t* Checking ${CONTAINER} container\n"
 if [ "${CONTAINER}" == "singularity" ]; then
-    if [[ ! -e "${CONTAINERDIR}/salmon.sif" ]]; then 
+    if [[ ! -e "${CONTAINERDIR}/barnacle.sif" ]]; then 
         singularity build "${CONTAINERDIR}/barnacle.sif" "docker-archive://${CONTAINERDIR}/barnacle.tar.gz"
     fi
 elif [ "${CONTAINER}" == "docker" ]; then
