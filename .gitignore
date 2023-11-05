@@ -8,6 +8,7 @@
 data/
 models/
 development/
+archive/
 
 # figures
 *.png
