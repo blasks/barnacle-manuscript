@@ -14,25 +14,14 @@ import json
 import numpy as np
 from pathlib import Path
 import pandas as pd
-import scipy
 from sklearn.model_selection import ParameterGrid
-import tensorly as tl
 from tensorly import check_random_state
 from tensorly.cp_tensor import CPTensor
-from barnacle import (
-    SparseCP, 
-    simulated_sparse_tensor, 
-    visualize_3d_tensor, 
-    plot_factors_heatmap, 
-    recovery_relevance, 
-    pairs_precision_recall
-)
+from barnacle import SparseCP
 from barnacle.tensors import SparseCPTensor
 from tlab.cp_tensor import store_cp_tensor, load_cp_tensor
-from tlviz.visualisation import optimisation_diagnostic_plots
 from tlviz.model_evaluation import relative_sse, core_consistency
-from tlviz.factor_tools import factor_match_score, cosine_similarity, degeneracy_score
-from tlviz.multimodel_evaluation import similarity_evaluation
+from tlviz.factor_tools import factor_match_score, degeneracy_score
 import xarray as xr
 
 
@@ -80,7 +69,7 @@ def generate_replicate_labels(sample_names, random_state=None, replicate_map=Non
 
 
 # function to separate out subtensors of each replicate
-def separate_replicates(dataset, coordinates, data_variable, replicate_label='replicate'):
+def separate_replicates(dataset, coordinates, data_variable, replicate_label='Replicate'):
     '''Separates data from each replicate set into its own independent DataArray.
     
     Parameters
@@ -91,7 +80,7 @@ def separate_replicates(dataset, coordinates, data_variable, replicate_label='re
         Coordinates to be preserved in each replicate set.
     data_variable : str
         Name of data variable to be selected in each replicate set.
-    replicate_label : str, default is 'replicate'
+    replicate_label : str, default is 'Replicate'
         Label of replicate field in `dataset`. 
  
     Returns
@@ -234,12 +223,12 @@ def fit_save_model(model, data, path, fit_params):
         if model._best_cp_index is not None:
             raise AssertionError('The `model` passed has already been fit')
         else:
-            with open(path / 'model_parameters.txt', 'w') as f:
+            with open(path / 'model-parameters.txt', 'w') as f:
                 f.write(json.dumps(model.__dict__, indent=4))
     _ = model.fit_transform(data, return_losses=False, **fit_params)
     # save best fit model
     if path is not None:
-        store_cp_tensor(model.decomposition_, path / 'fitted_model.h5')
+        store_cp_tensor(model.decomposition_, path / 'fitted-model.h5')
     # return model
     return model
 
@@ -263,15 +252,13 @@ def main():
     rns = check_random_state(seed)
     
     # analyze both pro & syn
-    for cyano in ['syn', 'pro']:
-    # for cyano in ['pro']:
+    for cyano in ['pro', 'syn']:
         print('\n\nBeginning {} calculations\n'.format(
             {'pro': 'Prochlorococcus', 'syn': 'Synechococcus'}[cyano]
         ))
     
         # output directory and experiment parameters
-        # base_dir = Path('../../data/4-fitting/{}'.format(cyano))
-        base_dir = Path('../../development/batch-correction/models/{}'.format(cyano))
+        base_dir = Path('../../data/4-fitting/{}'.format(cyano))
         n_bootstraps = 10
         replicates = ['A', 'B', 'C']
         n_replicates = len(replicates) 
@@ -290,8 +277,8 @@ def main():
             'n_initializations': [5]
         }
         param_grid = list(ParameterGrid(model_params))
-        # sort by rank to make parallelization more efficient
-        param_grid = sorted(param_grid, key=lambda d: d['rank'])
+        # sort by lambda to make parallelization more efficient
+        param_grid = sorted(param_grid, key=lambda d: d['lambdas'][0])
         
         # set up output data records and locations
         filepath_fit_data = base_dir / 'fitting_data.csv'
@@ -309,14 +296,12 @@ def main():
             cv_df = pd.DataFrame(
                 columns=['bootstrap_id', 'rank', 'lambda', 'modeled_replicate', 
                          'comparison_replicate', 'replicate_pair', 'n_components', 
-                         'mean_gene_sparsity', 'relative_sse', 'fms_cv', 
-                         'css_cv_factor0', 'scss_cv_factor0']
+                         'mean_gene_sparsity', 'relative_sse', 'fms_cv']
                 )
             cv_results = []
         
         # import xarray DataSet (NetCDF4 file)
-        dataset = xr.open_dataset('../../development/batch-correction/data/v2-batch-t=0.01/{}-tensor-dataset.nc'.format(cyano))
-        # dataset = xr.open_dataset('../../analyses/3-normalization/batch-test/{}-tensor-dataset.nc'.format(cyano))
+        dataset = xr.open_dataset('../../data/3-normalization/{}-tensor-dataset.nc'.format(cyano))
         shuffle_ds = dataset.copy()
         
         # begin experiment
@@ -326,7 +311,7 @@ def main():
             
             # directory and file paths
             output_dir = base_dir / 'bootstrap{}'.format(boot_id)
-            filepath_shuffle_ds = output_dir / 'dataset_bootstrap_{}.nc'.format(boot_id)
+            filepath_shuffle_ds = output_dir / 'dataset-bootstrap{}.nc'.format(boot_id)
             
             # import shuffled dataset if it exists
             if filepath_shuffle_ds.is_file():
@@ -341,19 +326,19 @@ def main():
                     output_dir.mkdir(parents=True)
                 # generate new replicate labels
                 new_labels = generate_replicate_labels(
-                    sample_names=shuffle_ds.samplename.to_numpy(), 
+                    sample_names=shuffle_ds.SampleName.to_numpy(), 
                     random_state=shuffle_seed, 
                     replicate_map={0:'A', 1:'B', 2:'C'}
                 )
                 # make Series of new labels with sample as index
                 new_labels_series = pd.DataFrame(
-                    zip(shuffle_ds.sample.to_numpy(), new_labels), 
-                    columns=['sample', 'replicate']
-                ).set_index('sample')['replicate']
+                    zip(shuffle_ds.Sample.to_numpy(), new_labels), 
+                    columns=['Sample', 'Replicate']
+                ).set_index('Sample')['Replicate']
                 # assign new replicate labels to copied dataset
-                shuffle_ds['replicate'] = xr.DataArray.from_series(new_labels_series)
+                shuffle_ds['Replicate'] = xr.DataArray.from_series(new_labels_series)
                 # save random seed used for shuffling as dataset attribute
-                shuffle_ds.attrs['shuffle_seed'] = shuffle_seed
+                shuffle_ds.attrs['ShuffleSeed'] = shuffle_seed
                 # save replicate shuffled dataset to netCDF4 file
                 shuffle_ds.to_netcdf(filepath_shuffle_ds)
             
@@ -364,7 +349,7 @@ def main():
                 if not path.is_dir():
                     path.mkdir(parents=True)
                 # collect all filepaths
-                filepaths_reps[rep] = path / 'shuffled_replicate_{}.nc'.format(rep, rep)
+                filepaths_reps[rep] = path / 'shuffled-replicate-{}.nc'.format(rep, rep)
             # check if all replicate dataarrays exist or not
             all_reps_saved = np.all([filepaths_reps[f].is_file() for f in replicates])
             # import replicate subtensors if the saved files exist
@@ -380,8 +365,8 @@ def main():
                 print('Separating shuffled replicate DataArrays', flush=True)
                 replicate_sets = separate_replicates(
                     shuffle_ds, 
-                    ['ortholog', 'clade', 'samplename'], 
-                    'residual'
+                    ['Ortholog', 'Clade', 'SampleName'], 
+                    'Residual'
                 )
                 for rep in replicates:
                     # save shuffled replicate data
@@ -400,7 +385,7 @@ def main():
                     model_dir = output_dir / 'replicate{}/rank{}/lambda{}'.format(
                         rep, params['rank'], params['lambdas'][0]
                     )
-                    filepath_fitted = model_dir / 'fitted_model.h5'
+                    filepath_fitted = model_dir / 'fitted-model.h5'
                     # don't re-fit any models that have already been fitted
                     if not filepath_fitted.is_file():
                         # instantiate parameterized model
@@ -445,8 +430,6 @@ def main():
                     sse = relative_sse(model.decomposition_, tensor)
                     degeneracy = degeneracy_score(model.decomposition_)
                     cc = core_consistency(model.decomposition_, tensor)
-                    monotonicity = np.all(np.diff(model.loss_) < 0)
-                    can_mon = [np.all(np.diff(l) < 0) for l in model.candidate_losses_]
                     can_fms = [factor_match_score(model.decomposition_, c, consider_weights=False, allow_smaller_rank=True) for c in model.candidates_]
                     can_sse = [relative_sse(c, tensor) for c in model.candidates_]
                     
@@ -464,8 +447,6 @@ def main():
                             'sse': sse, 
                             'degeneracy': degeneracy, 
                             'core_consistency': cc, 
-                            'monotonicity': monotonicity, 
-                            'candidate_monotonicity': can_mon, 
                             'candidate_fms': can_fms, 
                             'candidate_sse': can_sse
                         }
@@ -494,7 +475,7 @@ def main():
             rep_data = {}
             for rep in replicates:
                 rep_path = boot_path / 'replicate{}'.format(rep) 
-                rep_data[rep] = xr.open_dataarray(rep_path / 'shuffled_replicate_{}.nc'.format(rep))
+                rep_data[rep] = xr.open_dataarray(rep_path / 'shuffled-replicate-{}.nc'.format(rep))
             # iterate through all parameter combos
             for params in param_grid:
                 # get all the models
@@ -502,7 +483,7 @@ def main():
                 expt_path = 'rank{}/lambda{}'.format(params['rank'], params['lambdas'][0])
                 for rep in replicates:
                     cp_path = boot_path / 'replicate{}'.format(rep) / expt_path
-                    cps[rep] = load_cp_tensor(cp_path / 'fitted_model.h5')
+                    cps[rep] = load_cp_tensor(cp_path / 'fitted-model.h5')
                 for modeled_rep in replicates:
                     for comparison_rep in replicates:
                         print_string = 'bootstrap: {}, rank: {}, lambda: {}, modeled: {}, comparison: {}'.format(
@@ -536,7 +517,7 @@ def main():
                             common_labels, idx_modeled, idx_comparison = select_common_indices(
                                 rep_data[modeled_rep], 
                                 rep_data[comparison_rep], 
-                                ['samplename']
+                                ['SampleName']
                             )
                             # get cp subsets
                             subset_cps[modeled_rep] = subset_cp_tensor(
@@ -563,17 +544,9 @@ def main():
                                 consider_weights=False, 
                                 allow_smaller_rank=True
                             )
-                            css_cv = cosine_similarity(
-                                subset_cps[modeled_rep].factors[0], 
-                                subset_cps[comparison_rep].factors[0]
-                            )
-                            scss_cv = cosine_similarity(
-                                (subset_cps[modeled_rep].factors[0] != 0), 
-                                (subset_cps[comparison_rep].factors[0] != 0)
-                            )
                         else:
                             # skip redundant and self comparisons
-                            fms_cv = css_cv = scss_cv = np.nan
+                            fms_cv = np.nan
                         # calculate relative sse
                         rel_sse = relative_sse(subset_cps[modeled_rep], comparison_data.data)
                         # keep results
@@ -590,8 +563,6 @@ def main():
                                     (cps[modeled_rep].factors[0] != 0.0).sum(axis=0).mean(), 
                                 'relative_sse': rel_sse, 
                                 'fms_cv': fms_cv, 
-                                'css_cv_factor0': css_cv, 
-                                'scss_cv_factor0': scss_cv, 
                             }
                         )
                         # store results in dataframe
