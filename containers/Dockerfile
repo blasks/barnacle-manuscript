@@ -18,4 +18,9 @@ COPY requirements.txt requirements.txt
 # install all python requirements
 RUN pip install --no-cache-dir -r requirements.txt
 
+# install required R packages
+RUN R -e "install.packages('sctransform', dependencies=TRUE, repos='http://cran.rstudio.com/')"
+# RUN R -e "install_version('sctransform', version='0.4.1', dependencies=TRUE, repos='http://cran.rstudio.com/')"
+
+# set entry point as a bash command
 CMD ["bash"]
