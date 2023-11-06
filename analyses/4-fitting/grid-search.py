@@ -265,11 +265,11 @@ def main():
         
         # define model grid search param
         model_params = {
-            # 'rank': [1, 5, 10, 15, 20], 
+            'rank': [1, 2, 3, 4, 5], 
             # 'rank': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], 
-            'rank': [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50], 
-            # 'lambdas': [[i, 0.0, 0.0] for i in [16.0]], 
-            'lambdas': [[i, 0.0, 0.0] for i in [0.0, 0.1, 1.0, 10.0, 100.0]], 
+            # 'rank': [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50], 
+            'lambdas': [[i, 0.0, 0.0] for i in [5.0, 10.0, 20.0, 40.0, 80.0]], 
+            # 'lambdas': [[i, 0.0, 0.0] for i in [0.0, 0.1, 1.0, 10.0, 100.0]], 
             # 'lambdas': [[i, 0.0, 0.0] for i in [1., 2., 4., 8., 16., 32., 64.]], 
             'nonneg_modes': [[1, 2]],
             'tol': [1e-5], 
@@ -304,7 +304,12 @@ def main():
         dataset = xr.open_dataset('../../data/3-normalization/{}-tensor-dataset.nc'.format(cyano))
         shuffle_ds = dataset.copy()
         
-        # begin experiment
+        # assemble jobs
+        models = []
+        data_tensors = []
+        dirpaths_models = []
+        param_kwargs = []
+        ledger = {}
         for boot_id in range(n_bootstraps):
             shuffle_seed = rns.randint(2**32)
             print('\nBootstrap: {} (seed={})'.format(boot_id, shuffle_seed), flush=True)
@@ -378,8 +383,6 @@ def main():
                 tensor = replicate_sets[rep]
                 
                 # instantiate models and define output filepaths
-                models = []
-                dirpaths_models = []
                 for params in param_grid:
                     model_seed = rns.randint(2**32)
                     model_dir = output_dir / 'replicate{}/rank{}/lambda{}'.format(
@@ -390,81 +393,77 @@ def main():
                     if not filepath_fitted.is_file():
                         # instantiate parameterized model
                         models.append(SparseCP(**params, random_state=model_seed))
+                        data_tensors.append(tensor.data)
                         dirpaths_models.append(model_dir)
-
-                # continue to next set of replicates if all models have already been fit
-                if len(models) == 0:
-                    print(
-                        """
-                        Pre-existing models discovered, skipping fitting to following dataset:
-                            bootstrap = {}
-                            replicate = {}
-                        """.format(boot_id, rep), 
-                        flush=True
-                    )
-                    continue
-                else:
-                    print('\nFitting replicate {} models\n'.format(rep), flush=True)
-
-                # assemble job parameters
-                job_params = (
-                    models, 
-                    [tensor.data for m in models], 
-                    dirpaths_models, 
-                    [{'threads': 1, 'verbose': 0} for m in models]
-                )
-                    
-                # run jobs 
-                executor = ProcessPoolExecutor()
-                fit_models = executor.map(fit_save_model, *job_params)
-                    
-                # iterate through models in order
-                for model in fit_models:
-                    
-                    # calculate metrics
-                    rank = model.rank
-                    lamb = model.lambdas[0]
-                    best_init = model._best_cp_index
-                    loss = model.loss_[-1]
-                    cvg_iter = len(model.loss_)
-                    sse = relative_sse(model.decomposition_, tensor)
-                    degeneracy = degeneracy_score(model.decomposition_)
-                    cc = core_consistency(model.decomposition_, tensor)
-                    can_fms = [factor_match_score(model.decomposition_, c, consider_weights=False, allow_smaller_rank=True) for c in model.candidates_]
-                    can_sse = [relative_sse(c, tensor) for c in model.candidates_]
-                    
-                    # record metrics
-                    fitting_results.append(
-                        {
-                            'datetime': datetime.datetime.now(), 
-                            'bootstrap_id': boot_id, 
+                        param_kwargs.append({'threads': 1, 'verbose': 0})
+                        ledger[model_seed] = {
+                            'bootstrap': boot_id, 
                             'replicate': rep, 
-                            'rank': rank, 
-                            'lambda': lamb, 
-                            'best_init': best_init, 
-                            'loss': loss, 
-                            'convergence_iterations': cvg_iter, 
-                            'sse': sse, 
-                            'degeneracy': degeneracy, 
-                            'core_consistency': cc, 
-                            'candidate_fms': can_fms, 
-                            'candidate_sse': can_sse
+                            'model_dir': model_dir, 
+                            'tensor_path': filepaths_reps[rep]
                         }
-                    )
-                    
-                    # print some metrics
-                    print('rank:{}, lambda:{}, sse:{:.5}'.format(
-                        rank, 
-                        lamb, 
-                        sse, 
-                    ), flush=True)
-                
-                    # save data
-                    fitting_df = pd.DataFrame(fitting_results)
-                    fitting_df.to_csv(filepath_fit_data, index=False)
-                
-                # shut down executor
-                executor.shutdown()
+
+        # run all assembled jobs in parallel
+        print('\nLaunching model fitting in parallel\n', flush=True)
+        job_params = (
+            models, 
+            data_tensors, 
+            dirpaths_models, 
+            param_kwargs
+        )
+        executor = ProcessPoolExecutor()
+        fit_models = executor.map(fit_save_model, *job_params)
+            
+        # iterate through fitted model results
+        for model in fit_models:
+            
+            # calculate metrics
+            tensor = xr.open_dataarray(ledger[model.random_state]['tensor_path'])
+            rank = model.rank
+            lamb = model.lambdas[0]
+            best_init = model._best_cp_index
+            loss = model.loss_[-1]
+            cvg_iter = len(model.loss_)
+            sse = relative_sse(model.decomposition_, tensor)
+            degeneracy = degeneracy_score(model.decomposition_)
+            cc = core_consistency(model.decomposition_, tensor)
+            can_fms = [factor_match_score(model.decomposition_, c, consider_weights=False, allow_smaller_rank=True) for c in model.candidates_]
+            can_sse = [relative_sse(c, tensor) for c in model.candidates_]
+            
+            # record metrics
+            fitting_results.append(
+                {
+                    'datetime': datetime.datetime.now(), 
+                    'bootstrap_id': ledger[model.random_state]['bootstrap'], 
+                    'replicate': ledger[model.random_state]['replicate'], 
+                    'rank': rank, 
+                    'lambda': lamb, 
+                    'best_init': best_init, 
+                    'loss': loss, 
+                    'convergence_iterations': cvg_iter, 
+                    'sse': sse, 
+                    'degeneracy': degeneracy, 
+                    'core_consistency': cc, 
+                    'candidate_fms': can_fms, 
+                    'candidate_sse': can_sse
+                }
+            )
+            
+            # print some metrics
+            print('bootstrap: {}, replicate: {}, rank:{}, lambda:{}, sse:{:.5}'.format(
+                ledger[model.random_state]['bootstrap'], 
+                ledger[model.random_state]['replicate'], 
+                rank, 
+                lamb, 
+                sse, 
+            ), flush=True)
+        
+            # save data
+            fitting_df = pd.DataFrame(fitting_results)
+            fitting_df.to_csv(filepath_fit_data, index=False)
+        
+        # shut down executor
+        executor.shutdown()
 
         # collect cross validation results
         print('\nBeginning cross validataion calculations\n', flush=True)
@@ -529,7 +528,7 @@ def main():
                                 {2: idx_comparison}
                             )
                             # get comparison data
-                            comparison_data = rep_data[comparison_rep].sel(samplename=common_labels)
+                            comparison_data = rep_data[comparison_rep].sel(SampleName=common_labels)
                         else:
                             # cp subset is full model
                             subset_cps[modeled_rep] = cps[modeled_rep]
