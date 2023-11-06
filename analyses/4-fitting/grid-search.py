@@ -265,11 +265,11 @@ def main():
         
         # define model grid search param
         model_params = {
-            'rank': [1, 2, 3, 4, 5], 
+            # 'rank': [1, 2, 3, 4, 5], 
             # 'rank': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], 
-            # 'rank': [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50], 
-            'lambdas': [[i, 0.0, 0.0] for i in [5.0, 10.0, 20.0, 40.0, 80.0]], 
-            # 'lambdas': [[i, 0.0, 0.0] for i in [0.0, 0.1, 1.0, 10.0, 100.0]], 
+            'rank': [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50], 
+            # 'lambdas': [[i, 0.0, 0.0] for i in [5.0, 10.0, 20.0, 40.0, 80.0]], 
+            'lambdas': [[i, 0.0, 0.0] for i in [0.0, 0.1, 1.0, 10.0, 100.0]], 
             # 'lambdas': [[i, 0.0, 0.0] for i in [1., 2., 4., 8., 16., 32., 64.]], 
             'nonneg_modes': [[1, 2]],
             'tol': [1e-5], 
@@ -411,7 +411,7 @@ def main():
             dirpaths_models, 
             param_kwargs
         )
-        executor = ProcessPoolExecutor()
+        executor = ProcessPoolExecutor(max_workers=120)
         fit_models = executor.map(fit_save_model, *job_params)
             
         # iterate through fitted model results
