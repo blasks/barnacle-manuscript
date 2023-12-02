@@ -252,26 +252,24 @@ def main():
     rns = check_random_state(seed)
     
     # analyze both pro & syn
-    # for cyano in ['pro', 'syn']:
-    for cyano in ['pro']:
+    for cyano in ['pro', 'syn']:
+    # for cyano in ['syn']:
         print('\n\nBeginning {} calculations\n'.format(
             {'pro': 'Prochlorococcus', 'syn': 'Synechococcus'}[cyano]
         ))
     
         # output directory and experiment parameters
         base_dir = Path('../../data/4-fitting/{}'.format(cyano))
-        n_bootstraps = 100
+        n_bootstraps = 10
         replicates = ['A', 'B', 'C']
         n_replicates = len(replicates) 
         
         # define model grid search param
         model_params = {
-            'rank': [15], 
-            # 'rank': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], 
-            # 'rank': [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50], 
-            'lambdas': [[i, 0.0, 0.0] for i in [16.0]], 
-            # 'lambdas': [[i, 0.0, 0.0] for i in [0.0, 0.1, 1.0, 10.0, 100.0]], 
-            # 'lambdas': [[i, 0.0, 0.0] for i in [1., 2., 4., 8., 16., 32., 64.]], 
+            # 'rank': [15], 
+            'rank': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 25, 30, 35, 40, 45, 50], 
+            # 'lambdas': [[i, 0.0, 0.0] for i in [{'syn': 9.0, 'pro': 17.0}[cyano]]], 
+            'lambdas': [[i, 0.0, 0.0] for i in [0., 0.1, 1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12., 13., 14., 15., 16., 17., 18., 19., 20., 21., 22., 23., 24., 25., 26., 27., 28., 29., 30., 31., 32., 64., 100.]], 
             'nonneg_modes': [[1, 2]],
             'tol': [1e-5], 
             'n_iter_max': [1000], 
@@ -412,7 +410,7 @@ def main():
             dirpaths_models, 
             param_kwargs
         )
-        executor = ProcessPoolExecutor()
+        executor = ProcessPoolExecutor(max_workers=112)
         fit_models = executor.map(fit_save_model, *job_params)
             
         # iterate through fitted model results
