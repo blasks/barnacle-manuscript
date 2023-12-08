@@ -8,22 +8,65 @@
 # grid search.
 
 # imports
-from concurrent.futures import ProcessPoolExecutor
+import argparse
 import datetime
 import json
 import numpy as np
-from pathlib import Path
 import pandas as pd
+import xarray as xr
+
+from barnacle import SparseCP
+from barnacle.tensors import SparseCPTensor
+from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
 from sklearn.model_selection import ParameterGrid
 from tensorly import check_random_state
 from tensorly.cp_tensor import CPTensor
-from barnacle import SparseCP
-from barnacle.tensors import SparseCPTensor
 from tlab.cp_tensor import store_cp_tensor, load_cp_tensor
 from tlviz.model_evaluation import relative_sse, core_consistency
 from tlviz.factor_tools import factor_match_score, degeneracy_score
-import xarray as xr
 
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
+
+
+def handle_arguments():
+    '''
+    Returns argument parser.
+    '''
+    description = '''
+        This script performs a cross-validated hyperparameter grid search to
+        determine the optimal hyperparameters (rank: number of components, and
+        lambda: sparsity coefficient) for fitting a Barnacle SparseCPTensor
+        model to data. The script should be called with a config.toml file to 
+        define the parameters of the grid search.
+
+        Example usage: ./grid-search.py path/to/config.toml
+        
+        TOML format:
+        
+        [grid] # rank and lambda values to be evaluated in grid search (all-by-all)
+        ranks = [1, 5, 10, 15, 20]
+        lambdas = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]
+        
+        [params] # other parameters passed to the SparseCPTensor model, constant across grid search
+        nonneg_modes = [1, 2]
+        tol = 0.00001
+        n_iter_max = 2000
+        n_initializations = 5 
+        
+        [script] # other script parameters including output directory, bootstraps, etc.
+        outdir = "../../data/4-fitting/"
+        n_bootstraps = 10
+        replicates = ['A', 'B', 'C']
+        max_processes = 16
+        seed = 9481        
+        '''
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('toml', type=str, help='TOML file containing grid search parameters.')
+    return parser
 
 # function to return random replicate labelings
 def generate_replicate_labels(sample_names, random_state=None, replicate_map=None):
@@ -247,33 +290,37 @@ def nonzero_components(cp, return_trimmed_cp=False):
 # main experiment script
 def main():
     
+    # load config toml file
+    parser = handle_arguments()
+    args = parser.parse_args()
+    with open(args.toml, mode='rb') as config_file:
+        config = tomllib.load(config_file)
+    
     # set random state
-    seed = 9481
+    seed = config['script']['seed']
     rns = check_random_state(seed)
     
     # analyze both pro & syn
     for cyano in ['pro', 'syn']:
-    # for cyano in ['syn']:
         print('\n\nBeginning {} calculations\n'.format(
             {'pro': 'Prochlorococcus', 'syn': 'Synechococcus'}[cyano]
         ))
     
         # output directory and experiment parameters
-        base_dir = Path('../../data/4-fitting/{}'.format(cyano))
-        n_bootstraps = 10
-        replicates = ['A', 'B', 'C']
+        base_dir = Path('{}/{}'.format(config['script']['outdir'], cyano))
+        n_bootstraps = config['script']['n_bootstraps']
+        replicates = config['script']['replicates']
         n_replicates = len(replicates) 
+        max_processes = config['script']['max_processes']
         
         # define model grid search param
         model_params = {
-            # 'rank': [15], 
-            'rank': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 25, 30, 35, 40, 45, 50], 
-            # 'lambdas': [[i, 0.0, 0.0] for i in [{'syn': 9.0, 'pro': 17.0}[cyano]]], 
-            'lambdas': [[i, 0.0, 0.0] for i in [0., 0.1, 1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12., 13., 14., 15., 16., 17., 18., 19., 20., 21., 22., 23., 24., 25., 26., 27., 28., 29., 30., 31., 32., 64., 100.]], 
-            'nonneg_modes': [[1, 2]],
-            'tol': [1e-5], 
-            'n_iter_max': [1000], 
-            'n_initializations': [5]
+            'rank': config['grid']['ranks'], 
+            'lambdas': config['grid']['lambdas'], 
+            'nonneg_modes': [config['params']['nonneg_modes']],
+            'tol': [config['params']['tol']], 
+            'n_iter_max': [config['params']['n_iter_max']], 
+            'n_initializations': [config['params']['n_initializations']]
         }
         param_grid = list(ParameterGrid(model_params))
         # sort by lambda to make parallelization more efficient
@@ -410,7 +457,7 @@ def main():
             dirpaths_models, 
             param_kwargs
         )
-        executor = ProcessPoolExecutor(max_workers=112)
+        executor = ProcessPoolExecutor(max_workers=max_processes)
         fit_models = executor.map(fit_save_model, *job_params)
             
         # iterate through fitted model results

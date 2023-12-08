@@ -13,6 +13,7 @@ set -o errexit
 WORKDIR=$(realpath "./" )
 BASEDIR=$(realpath "../../")
 CONTAINERDIR="${BASEDIR}/containers"
+TOML_FILES=$(ls *.toml)
 
 ####################################################
 # 0. Select Singularity or Docker containerization #
@@ -51,7 +52,11 @@ elif [ "${CONTAINER}" == "docker" ]; then
 fi
 printf "\nRunning parameter grid search\n"
 if [ "${CONTAINER}" == "singularity" ]; then
-    singularity exec --bind ${BASEDIR}:${BASEDIR} --pwd "${WORKDIR}" ${CONTAINERDIR}/barnacle.sif python grid-search.py
+    for TOML in ${TOML_FILES}; do 
+        singularity exec --bind ${BASEDIR}:${BASEDIR} --pwd "${WORKDIR}" ${CONTAINERDIR}/barnacle.sif python grid-search.py ${TOML}
+    done
 elif [ "${CONTAINER}" == "docker" ]; then
-    docker run --mount type=bind,source=${BASEDIR},target=${BASEDIR} -w "${WORKDIR}" barnacle python grid-search.py
+    for TOML in ${TOML_FILES}; do 
+        docker run --mount type=bind,source=${BASEDIR},target=${BASEDIR} -w "${WORKDIR}" barnacle python grid-search.py ${TOML}
+    done
 fi
