@@ -1,0 +1,18 @@
+[grid] # rank and lambda values to be evaluated in grid search (all-by-all)
+ranks = [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
+lambdas = [
+    [0.0, 0.0, 0.0], [0.1, 0.0, 0.0], [1.0, 0.0, 0.0], [10.0, 0.0, 0.0], [100.0, 0.0, 0.0]
+]
+
+[params] # other parameters passed to the SparseCPTensor model, constant across grid search
+nonneg_modes = [1, 2]
+tol = 0.00001
+n_iter_max = 2000
+n_initializations = 5 
+
+[script] # other script parameters including output directory, bootstraps, etc.
+outdir = "../../data/4-fitting/"
+n_bootstraps = 10
+replicates = ['A', 'B', 'C']
+max_processes = 28
+seed = 9481  
