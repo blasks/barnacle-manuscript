@@ -13,7 +13,7 @@ set -o errexit
 WORKDIR=$(realpath "./" )
 BASEDIR=$(realpath "../../")
 CONTAINERDIR="${BASEDIR}/containers"
-TOML_FILES=$(ls *.toml)
+TOML_FILES=$(ls config/*.toml)
 
 ####################################################
 # 0. Select Singularity or Docker containerization #
