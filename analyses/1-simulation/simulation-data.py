@@ -250,6 +250,17 @@ def nonzero_components(cp, return_trimmed_cp=False):
         raise NotImplementedError
     else:
         return (accumulator != 0.0).sum()
+    
+    
+# function to calculate f1 score from composite precision & recall scores
+def composite_f1(precision, recall):
+    '''
+    Calculates F1 score from precision and recall.'''
+    numerator = precision + recall
+    if numerator == 0:
+        return 0
+    else:
+        return (2 * precision * recall) / numerator
 
 
 # main experiment script
@@ -290,11 +301,10 @@ def main():
     # model parameters
     model_params = {
         'rank': [int(i) for i in np.linspace(1, 12, 12)], 
-        # 'lambdas': [[i, 0.0, 0.0] for i in [0.0, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0]], 
         'lambdas': [[i, 0.0, 0.0] for i in [0.0, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4, 12.8]], 
         'nonneg_modes': [[1, 2]],
         'tol': [1e-6], 
-        'n_iter_max': [1000], 
+        'n_iter_max': [2000], 
         'n_initializations': [5]
     }
     param_grid = list(ParameterGrid(model_params))
@@ -402,8 +412,6 @@ def main():
                 fms = factor_match_score(model.decomposition_, sim_tensor, consider_weights=False, allow_smaller_rank=True)
                 degeneracy = degeneracy_score(model.decomposition_)
                 cc = core_consistency(model.decomposition_, tensor)
-                monotonicity = np.all(np.diff(model.loss_) < 0)
-                can_mon = [np.all(np.diff(l) < 0) for l in model.candidate_losses_]
                 can_fms = [factor_match_score(model.decomposition_, c, consider_weights=False, allow_smaller_rank=True) for c in model.candidates_]
                 can_sse = [relative_sse(c, tensor) for c in model.candidates_]
                 
@@ -423,8 +431,6 @@ def main():
                         'fms': fms, 
                         'degeneracy': degeneracy, 
                         'core_consistency': cc, 
-                        'monotonicity': monotonicity, 
-                        'candidate_monotonicity': can_mon, 
                         'candidate_fms': can_fms, 
                         'candidate_sse': can_sse
                     }
@@ -441,17 +447,9 @@ def main():
                 # save data
                 fitting_df = pd.DataFrame(fitting_results)
                 fitting_df.to_csv(filepath_fit_data, index=False)
-                # fitting_df = pd.DataFrame(fitting_results)
-                # fitting_df[fitting_df['simulation_id'] == sim_id].to_csv(
-                #     output_dir / 'fitting_data.csv', 
-                #     index=False
-                # )
             
             # shut down executor
             executor.shutdown()
-    
-    # save combined fitting data to base directory
-    fitting_df.to_csv(base_dir / 'fitting_data_combined.csv', index=False)
 
     # collect cross validation results
     for sim_id in range(n_simulations):
@@ -551,7 +549,8 @@ def main():
                             'recovery': recovery, 
                             'relevance': relevance, 
                             'precision': precision, 
-                            'recall': recall
+                            'recall': recall, 
+                            'f1': composite_f1(precision, recall)
                         }
                     ) 
                     # store results in dataframe
