@@ -303,7 +303,7 @@ def main():
         'rank': [int(i) for i in np.linspace(1, 12, 12)], 
         'lambdas': [[i, 0.0, 0.0] for i in [0.0, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4, 12.8]], 
         'nonneg_modes': [[1, 2]],
-        'tol': [1e-6], 
+        'tol': [1e-5], 
         'n_iter_max': [2000], 
         'n_initializations': [5]
     }
