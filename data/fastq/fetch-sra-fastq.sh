@@ -13,7 +13,7 @@ FASTQDIR="${BASEDIR}/data/fastq"
 SRADIR="${FASTQDIR}/sra"
 CONTAINERDIR="${BASEDIR}/containers"
 METADATA="SRA-Sample-Metadata.csv"
-
+THREADS=32
 
 ####################################################
 # 0. Select Singularity or Docker containerization #
@@ -38,7 +38,7 @@ done
 ##########################
 printf "\n\t* Checking ${CONTAINER} container\n"
 if [ "${CONTAINER}" == "singularity" ]; then
-    if [[ ! -e "${CONTAINERDIR}/salmon.sif" ]]; then 
+    if [[ ! -e "${CONTAINERDIR}/sra-tools.sif" ]]; then 
         singularity build "${CONTAINERDIR}/sra-tools.sif" docker://quay.io/biocontainers/sra-tools:3.1.0--h4304569_1
     fi
 elif [ "${CONTAINER}" == "docker" ]; then
@@ -58,7 +58,7 @@ for SRA in `tail -n +2 $METADATA | cut -d "," -f 3`; do
         singularity exec --bind ${BASEDIR}:${BASEDIR} ${CONTAINERDIR}/sra-tools.sif prefetch \
             ${SRA} -O ${SRADIR} --max-size 1t
         # extract fastq files from SRA
-        singularity exec --bind ${BASEDIR}:${BASEDIR} --workdir ${SRADIR} ${CONTAINERDIR}/sra-tools.sif fasterq-dump ${SRA}
+        singularity exec --bind ${BASEDIR}:${BASEDIR} --workdir ${SRADIR} ${CONTAINERDIR}/sra-tools.sif fasterq-dump --threads ${THREADS} ${SRA}
     elif [ "${CONTAINER}" == "docker" ]; then
         # prefetch SRA
         docker run --mount type=bind,source=${BASEDIR},target=${BASEDIR} \
@@ -66,7 +66,14 @@ for SRA in `tail -n +2 $METADATA | cut -d "," -f 3`; do
             ${SRA} -O ${SRADIR} --max-size 1t
         # extract fastq files from SRA
         docker run --mount type=bind,source=${BASEDIR},target=${BASEDIR} --workdir ${SRADIR} \
-            quay.io/biocontainers/sra-tools:3.1.0--h4304569_1 fasterq-dump ${SRA}
+            quay.io/biocontainers/sra-tools:3.1.0--h4304569_1 fasterq-dump --threads ${THREADS} ${SRA}
     fi
 done
 
+##############################################
+# 2. Combine all reads from the same samples #
+##############################################
+# Iterate through each unique SampleID
+# Pull out all SRR IDs associated with the SampleID
+# Concatenate forward reads
+# Concatenate reverse reads
