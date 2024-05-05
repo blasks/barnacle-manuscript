@@ -32,11 +32,13 @@ done
 if [ "${CONTAINER}" == "singularity" ]; then
     # Pull Singularity containers for tools in which one is maintained by the developer.
     singularity build salmon.sif docker://combinelab/salmon:1.10.2
+    singularity build sra-tools.sif docker://quay.io/biocontainers/sra-tools:3.1.0--h4304569_1
     # build singularity image from tarball
     singularity build barnacle.sif docker-archive://barnacle.tar.gz
 elif [ "${CONTAINER}" == "docker" ]; then
     # Pull Docker containers for tools in which one is maintained by the developer.
     docker pull combinelab/salmon:1.10.2
+    docker pull quay.io/biocontainers/sra-tools:3.1.0--h4304569_1
     # export poetry environment requirements
     if [[ ! -e requirements.txt ]]; then
         poetry export --without-hashes >> requirements.txt
