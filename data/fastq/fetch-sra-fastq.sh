@@ -2,8 +2,8 @@
 # AUTHOR: Stephen Blaskowski
 
 # Fetch raw fastq data from the NCBI Sequence Read Archive (SRA)
-# This script depends on the prefetch and fasterq-dump functions of the sra-tools
-# software. Instructions for downloading/installing sra-tools can be found
+# This script depends on the prefetch and fasterq-dump functions of 
+# the sra-tools software suite. Instructions for using sra-tools can be found
 # on the NCBI website, or the project repository page:
 # https://github.com/ncbi/sra-tools/wiki
 
@@ -11,16 +11,19 @@
 BASEDIR=$(realpath "../../")
 FASTQDIR="${BASEDIR}/data/fastq"
 SRADIR="${FASTQDIR}/sra"
+RAWDIR="${FASTQDIR}/raw"
 CONTAINERDIR="${BASEDIR}/containers"
 METADATA="SRA-Sample-Metadata.csv"
 THREADS=32
 
-####################################################
-# 0. Select Singularity or Docker containerization #
-####################################################
+
+#####################
+# 0. Select options #
+#####################
+# Singularity or Docker containerization
 CONTAINER=""
 while [ "${CONTAINER}" == "" ]; do
-    printf "\nPlease select an option:\n\n\t1 - singularity\n\t2 - docker\n\nEnter '1' or '2': "
+    printf "\nPlease select an option:\n\n\t1 - Singularity\n\t2 - Docker\n\nEnter '1' or '2': "
     read SELECTION 
     if [ "${SELECTION}" == "1" ]; then
         echo "Continuing with Singularity containerized workflow"
@@ -28,6 +31,21 @@ while [ "${CONTAINER}" == "" ]; do
     elif [ "${SELECTION}" == "2" ]; then
         echo "Continuing with Docker containerized workflow"
         CONTAINER="docker"
+    else 
+        printf "\nInvalid selection\n"
+    fi
+done
+# File cleanup
+CLEANUP=""
+while [ "${CLEANUP}" == "" ]; do
+    printf "\nWould you like to save storage by removing SRA files following fastq extraction?\n\n\t1 - Yes\n\t2 - No\n\nEnter '1' or '2': "
+    read SELECTION 
+    if [ "${SELECTION}" == "1" ]; then
+        echo "Will remove SRA files following fastq extraction"
+        CLEANUP="True"
+    elif [ "${SELECTION}" == "2" ]; then
+        echo "Will not remove any files"
+        CLEANUP="False"
     else 
         printf "\nInvalid selection\n"
     fi
@@ -45,9 +63,9 @@ elif [ "${CONTAINER}" == "docker" ]; then
     docker pull quay.io/biocontainers/sra-tools:3.1.0--h4304569_1
 fi
 
-###############################
-# 1. Download fastqs from SRA #
-###############################
+#############################
+# 2. Download data from SRA #
+#############################
 if [[ ! -d ${SRADIR} ]]; then
     mkdir -p ${SRADIR}
 fi
@@ -58,7 +76,8 @@ for SRA in `tail -n +2 $METADATA | cut -d "," -f 3`; do
         singularity exec --bind ${BASEDIR}:${BASEDIR} ${CONTAINERDIR}/sra-tools.sif prefetch \
             ${SRA} -O ${SRADIR} --max-size 1t
         # extract fastq files from SRA
-        singularity exec --bind ${BASEDIR}:${BASEDIR} --workdir ${SRADIR} ${CONTAINERDIR}/sra-tools.sif fasterq-dump --threads ${THREADS} ${SRA}
+        singularity exec --bind ${BASEDIR}:${BASEDIR} --pwd ${SRADIR} ${CONTAINERDIR}/sra-tools.sif fasterq-dump \
+            ${SRA} -O ${RAWDIR} --threads ${THREADS} 
     elif [ "${CONTAINER}" == "docker" ]; then
         # prefetch SRA
         docker run --mount type=bind,source=${BASEDIR},target=${BASEDIR} \
@@ -70,10 +89,34 @@ for SRA in `tail -n +2 $METADATA | cut -d "," -f 3`; do
     fi
 done
 
-##############################################
-# 2. Combine all reads from the same samples #
-##############################################
-# Iterate through each unique SampleID
-# Pull out all SRR IDs associated with the SampleID
-# Concatenate forward reads
-# Concatenate reverse reads
+##################################
+# 3. Extract fastq data from SRA #
+##################################
+if [[ ! -d ${RAWDIR} ]]; then
+    mkdir -p ${RAWDIR}
+fi
+for SRA in `tail -n +2 $METADATA | cut -d "," -f 3`; do
+    # extract fastq files
+    printf "\n\t* Extracting fastq files for ${SRA}\n"
+    if [ "${CONTAINER}" == "singularity" ]; then
+        singularity exec --bind ${BASEDIR}:${BASEDIR} --pwd ${SRADIR} ${CONTAINERDIR}/sra-tools.sif fasterq-dump \
+            ${SRA} -O ${RAWDIR} --threads ${THREADS}
+    elif [ "${CONTAINER}" == "docker" ]; then
+        docker run --mount type=bind,source=${BASEDIR},target=${BASEDIR} --workdir ${SRADIR} \
+            quay.io/biocontainers/sra-tools:3.1.0--h4304569_1 fasterq-dump \
+            ${SRA} -O ${RAWDIR} --threads ${THREADS}
+    fi
+    # gzip files
+    printf "\n\t* Compressing fastq files for ${SRA}\n"
+    gzip "${RAWDIR}/${SRA}_1.fastq"
+    gzip "${RAWDIR}/${SRA}_2.fastq"
+    # clean up
+    if [ "${CLEANUP}" == "True" ]; then
+        rm -rf "${SRADIR}/${SRA}"
+    fi
+done
+# clean up
+if [ "${CLEANUP}" == "True" ]; then
+    rmdir "${SRADIR}"
+fi
+
