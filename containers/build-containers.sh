@@ -33,18 +33,21 @@ if [ "${CONTAINER}" == "singularity" ]; then
     # Pull Singularity containers for tools in which one is maintained by the developer.
     singularity build salmon.sif docker://combinelab/salmon:1.10.2
     singularity build sra-tools.sif docker://quay.io/biocontainers/sra-tools:3.1.0--h4304569_1
-    # build singularity image from tarball
-    singularity build barnacle.sif docker-archive://barnacle.tar.gz
+    singularity build trimmomatic.sif docker://quay.io/biocontainers/trimmomatic:0.32--hdfd78af_4 
+    # # build singularity image from tarball
+    # singularity build barnacle.sif docker-archive://barnacle.tar.gz
 elif [ "${CONTAINER}" == "docker" ]; then
     # Pull Docker containers for tools in which one is maintained by the developer.
     docker pull combinelab/salmon:1.10.2
     docker pull quay.io/biocontainers/sra-tools:3.1.0--h4304569_1
+    docker pull quay.io/biocontainers/trimmomatic:0.32--hdfd78af_4 
     # export poetry environment requirements
     if [[ ! -e requirements.txt ]]; then
         poetry export --without-hashes >> requirements.txt
     fi
     # make Docker containers from Dockerfiles
     docker image build -t barnacle .
-    docker save barnacle | gzip > barnacle.tar.gz
+    # # save tarball of barnacle image to convert to Singularity image
+    # docker save barnacle | gzip > barnacle.tar.gz
 fi
 

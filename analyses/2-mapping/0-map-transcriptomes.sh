@@ -38,28 +38,8 @@ while [ "${CONTAINER}" == "" ]; do
     fi
 done
 
-# ############################
-# # 1. Trim & QC fastq reads #
-# ############################
-# printf "\nStep 1: Preprocessing raw fastq reads\n"
-# if [[ ! -e ${FASTQ} ]]; then
-#     pushd ${FASTQ}
-#     ./process-raw-reads.sh
-#     popd
-# fi
-
-# #############################
-# # 2. Combine size fractions #
-# #############################
-# printf "\nStep 2: Combining size fractions\n"
-# if [[ ! -e ${FASTQ} ]]; then
-#     pushd ${FASTQ}
-#     ./combine-size-fractions.sh
-#     popd
-# fi
-
 ##################################
-# 3. Compile reference sequences #
+# 1. Compile reference sequences #
 ##################################
 printf "\nStep 3: Compiling reference sequences\n"
 if [[ ! -e ${REFS} ]]; then
@@ -69,7 +49,7 @@ if [[ ! -e ${REFS} ]]; then
 fi
 
 #########################################
-# 4. Map fastq reads against references #
+# 2. Map fastq reads against references #
 #########################################
 printf "\nStep 4: Mapping processed fastq reads against reference set\n"
 
@@ -102,11 +82,11 @@ fi
 
 # map data to reference
 i=1
-TOTAL=$( ls ${FASTQ}/defract/*.fw.fastq.gz | wc -l )
-for R1 in ${FASTQ}/defract/*.fw.fastq.gz; do 
+TOTAL=$( ls ${FASTQ}/qc/*.fw.fastq.gz | wc -l )
+for R1 in ${FASTQ}/qc/*.fw.fastq.gz; do 
     SAMPLE=$(basename ${R1})
     SAMPLE=${SAMPLE%.fw.fastq.gz}
-    R2="${FASTQ}/defract/${SAMPLE}.rv.fastq.gz"
+    R2="${FASTQ}/qc/${SAMPLE}.rv.fastq.gz"
     OUTDIR="${MAPDIR}/salmon/${SAMPLE}"
     # quanitify with salmon
     if [[ ! -f ${OUTDIR}/quant.sf ]]; then
@@ -125,7 +105,7 @@ for R1 in ${FASTQ}/defract/*.fw.fastq.gz; do
 done
 
 #######################
-# 5. Collate mappings #
+# 3. Collate mappings #
 #######################
 printf "\nStep 5: Collating mapping outputs\n"
 # build barnacle container
