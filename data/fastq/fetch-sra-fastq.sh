@@ -99,15 +99,21 @@ for SRA in `tail -n +2 $METADATA | cut -d "," -f 3`; do
             quay.io/biocontainers/sra-tools:3.1.0--h4304569_1 fasterq-dump \
             ${SRA} -O ${RAWDIR} --threads ${THREADS} -v
     fi
-    # gzip files
-    printf "\n\t* Compressing fastq files for ${SRA}\n"
-    gzip "${RAWDIR}/${SRA}_1.fastq"
-    gzip "${RAWDIR}/${SRA}_2.fastq"
     # clean up
     if [ "${CLEANUP}" == "True" ]; then
         rm -rf "${SRADIR}/${SRA}"
     fi
+    # gzip files in parallel every ${THREADS} files
+    FILES=$( ls ${RAWDIR}/*.fastq | wc -l )
+    if [ $(( ${FILES} % ${THREADS} )) == 0 ]; then
+        printf "\n\t* Compressing ${THREADS} fastq files in parallel\n"
+        find ${RAWDIR}/*.fastq | parallel gzip
+    fi
 done
+# gzip remaining fastq files
+FILES=$( ls ${RAWDIR}/*.fastq | wc -l )
+printf "\n\t* Compressing ${FILES} fastq files in parallel\n"
+find ${RAWDIR}/*.fastq | parallel gzip
 # clean up
 if [ "${CLEANUP}" == "True" ]; then
     rmdir "${SRADIR}"
