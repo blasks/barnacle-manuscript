@@ -89,19 +89,21 @@ if [[ ! -d ${RAWDIR} ]]; then
     mkdir -p ${RAWDIR}
 fi
 for SRA in `tail -n +2 $METADATA | cut -d "," -f 3`; do
-    # extract fastq files
-    printf "\n\t* Extracting fastq files for ${SRA}\n"
-    if [ "${CONTAINER}" == "singularity" ]; then
-        singularity exec --bind ${BASEDIR}:${BASEDIR} --pwd ${SRADIR} ${CONTAINERDIR}/sra-tools.sif fasterq-dump \
-            ${SRA} -O ${RAWDIR} --threads ${THREADS} -v
-    elif [ "${CONTAINER}" == "docker" ]; then
-        docker run --mount type=bind,source=${BASEDIR},target=${BASEDIR} --workdir ${SRADIR} \
-            quay.io/biocontainers/sra-tools:3.1.0--h4304569_1 fasterq-dump \
-            ${SRA} -O ${RAWDIR} --threads ${THREADS} -v
+    if [ ! -e ${RAWDIR}/${SRA}_1.fastq* ] && [ ! -e ${RAWDIR}/${SRA}_2.fastq* ]; then
+        # extract fastq files
+        printf "\n\t* Extracting fastq files for ${SRA}\n"
+        if [ "${CONTAINER}" == "singularity" ]; then
+            singularity exec --bind ${BASEDIR}:${BASEDIR} --pwd ${SRADIR} ${CONTAINERDIR}/sra-tools.sif fasterq-dump \
+                ${SRA} -O ${RAWDIR} --threads ${THREADS} -v
+        elif [ "${CONTAINER}" == "docker" ]; then
+            docker run --mount type=bind,source=${BASEDIR},target=${BASEDIR} --workdir ${SRADIR} \
+                quay.io/biocontainers/sra-tools:3.1.0--h4304569_1 fasterq-dump \
+                ${SRA} -O ${RAWDIR} --threads ${THREADS} -v
+        fi
     fi
     # clean up
     if [ "${CLEANUP}" == "True" ]; then
-        rm -rf "${SRADIR}/${SRA}"
+        rm -rf ${SRADIR}/${SRA}
     fi
     # gzip files in parallel every ${THREADS} files
     FILES=$( ls ${RAWDIR}/*.fastq | wc -l )
