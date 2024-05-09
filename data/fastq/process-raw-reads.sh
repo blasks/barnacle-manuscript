@@ -69,20 +69,22 @@ if [[ ! -d ${DEFRACDIR} ]]; then
     mkdir -p ${DEFRACDIR}
 fi
 for SAMPLE in `tail -n +2 $METADATA | cut -d "," -f 2 | sort | uniq`; do
-    printf "\n\t* Collecting reads for sample ${SAMPLE}\n"
-    # pull out all the SRRs associated with each sample ID
-    grep "${SAMPLE}" "${METADATA}" >> temp-srr-list.csv
-    for SRR in `cut -d "," -f 3 temp-srr-list.csv`; do
-        # concatenate forward reads
-        cat "${RAWDIR}/${SRR}_1.fastq.gz" >> "${DEFRACDIR}/${SAMPLE}.fw.fastq.gz"
-        # concatenate reverse reads
-        cat "${RAWDIR}/${SRR}_2.fastq.gz" >> "${DEFRACDIR}/${SAMPLE}.rv.fastq.gz"
-        # clean up
-        if [ "${CLEANUP}" == "True" ]; then
-            rm "${RAWDIR}/${SRA}_?.fastq.gz"
-        fi
-    done
-    rm temp-srr-list.csv
+    if [ ! -e ${DEFRACDIR}/${SAMPLE}.fw.fastq.gz ] && [ ! -e ${DEFRACDIR}/${SAMPLE}.rv.fastq.gz ]; then
+        printf "\n\t* Collecting reads for sample ${SAMPLE}\n"
+        # pull out all the SRRs associated with each sample ID
+        grep "${SAMPLE}" "${METADATA}" >> temp-srr-list.csv
+        for SRR in `cut -d "," -f 3 temp-srr-list.csv`; do
+            # concatenate forward reads
+            cat "${RAWDIR}/${SRR}_1.fastq.gz" >> "${DEFRACDIR}/${SAMPLE}.fw.fastq.gz"
+            # concatenate reverse reads
+            cat "${RAWDIR}/${SRR}_2.fastq.gz" >> "${DEFRACDIR}/${SAMPLE}.rv.fastq.gz"
+            # clean up
+            if [ "${CLEANUP}" == "True" ]; then
+                rm "${RAWDIR}/${SRA}_?.fastq.gz"
+            fi
+        done
+        rm temp-srr-list.csv
+    fi
 done
 # clean up
 if [ "${CLEANUP}" == "True" ]; then
