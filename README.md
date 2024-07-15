@@ -33,7 +33,7 @@ The sequences reported have been deposited in the NCBI Sequence Read Archive und
 
 ## Poster
 
-For an overview of the research described in this manuscript, take a look at a related conference poster we made:
+For an overview of the research in this manuscript, take a look at this poster we made about it:
 
 ![Barnacle Poster](https://github.com/blasks/barnacle-manuscript/blob/main/barnacle_poster.svg)
 
