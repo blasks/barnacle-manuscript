@@ -2,7 +2,7 @@
 
 This repository organizes the scripts, analyses, figures, and latex files associated with the publication entitled _Simultaneous acclimation to nitrogen and iron scarcity in open ocean cyanobacteria revealed by sparse tensor decomposition of metatranscriptomes_.
 
-## Barnacle
+## Barnacle Package
 
 We developed a Python package to implement the sparse tensor decomposition model used in the manuscript to analyze cyanobacterial gene expression data. The code for this package is published in a separate [GitHub repository](https://github.com/blasks/barnacle). Details on library usage can be found on the [Barnacle documentation website](https://barnacle-py.readthedocs.io). The documentation includes:
 
@@ -31,6 +31,10 @@ The sequences reported have been deposited in the NCBI Sequence Read Archive und
    - [PRJNA1090467](https://www.ncbi.nlm.nih.gov/bioproject/1090467) (depth samples)
    - [PRJNA1090899](https://www.ncbi.nlm.nih.gov/bioproject/1090899) (diel samples)
 
+## Poster
 
+For an overview of the research described in this manuscript, take a look at a related conference poster we made:
+
+[[https://github.com/blasks/barnacle-manuscript/blob/main/barnacle_poster.pdf]]
 
 
