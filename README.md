@@ -35,6 +35,6 @@ The sequences reported have been deposited in the NCBI Sequence Read Archive und
 
 For an overview of the research described in this manuscript, take a look at a related conference poster we made:
 
-![Barnacle Poster](https://github.com/blasks/barnacle-manuscript/blob/main/barnacle_poster.pdf)
+![Barnacle Poster](https://github.com/blasks/barnacle-manuscript/blob/main/barnacle_poster.svg)
 
 
