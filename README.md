@@ -1,6 +1,6 @@
 # Barnacle Manuscript
 
-This repository organizes the scripts, analyses, figures, and latex files associated with the publication entitled _Simultaneous acclimation to nitrogen and iron scarcity in open ocean cyanobacteria revealed by sparse tensor decomposition of metatranscriptomes_.
+This repository organizes the scripts, analyses, figures, and latex files associated with the publication entitled _Simultaneous acclimation to nitrogen and iron scarcity in open ocean cyanobacteria revealed by sparse tensor decomposition of metatranscriptomes_ ([1](https://doi.org/10.1101/2024.07.15.603627)).
 
 ## Barnacle Package
 
@@ -37,4 +37,6 @@ For an overview of the research in this manuscript, take a look at this poster w
 
 ![Barnacle Poster](https://github.com/blasks/barnacle-manuscript/blob/main/barnacle_poster.svg)
 
+## References
 
+1. Blaskowski, Stephen, Marie Roald, Paul M. Berube, Rogier Braakman, and E. Virginia Armbrust. "Simultaneous acclimation to nitrogen and iron scarcity in open ocean cyanobacteria revealed by sparse tensor decomposition of metatranscriptomes." bioRxiv (2024): 2024-07. https://doi.org/10.1101/2024.07.15.603627.
