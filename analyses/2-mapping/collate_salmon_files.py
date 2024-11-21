@@ -56,7 +56,6 @@ def import_quant_files(path_list, sample_list, quant_col, norm_factors=None):
     return df
 
 
-
 def main():
     # parse arguments
     parser = handle_arguments()
@@ -88,7 +87,28 @@ def main():
     # save dataframe to output directory
     quant_df.to_csv(output_path, index=False, compression='gzip')
     print('Values successfully collated.')
-        
+
+    # parse metadata info
+    output_path = '{}/salmon_metadata.csv'.format(args.output_dir)
+    # check output path
+    if os.path.isfile(output_path):
+        raise FileExistsError('A file by the name of {} already exists.'.format(output_path))
+    print('Collating metadata from meta_info.json files found under {}\n'.format(args.input_dir))
+    path_metadata = '{}/*/aux_info/meta_info.json'.format(args.input_dir)
+    json_list = []
+    for filepath in glob.glob(path_metadata):
+        # parse json
+        with open(filepath) as file:
+            json_file = json.load(file)
+        # append SampleID
+        json_file['SampleID'] = os.path.basename(os.path.dirname(os.path.dirname(filepath)))
+        # compile list
+        json_list.append(json_file)
+    # make DataFrame
+    metadata_df = pd.DataFrame(json_list)
+    # save dataframe to output directory
+    metadata_df.to_csv(output_path, index=False)
+    print('Metadata successfully collated.')
 
 
 if __name__ == "__main__":
