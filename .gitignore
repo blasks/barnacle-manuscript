@@ -9,6 +9,7 @@ data/
 models/
 development/
 archive/
+manuscript/
 
 # figures
 *.png
